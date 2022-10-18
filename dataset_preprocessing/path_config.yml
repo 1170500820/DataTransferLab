@@ -1,0 +1,13 @@
+# 各种文件的路径配置
+
+dataset_path: ../data
+weibo_dataset_path: Weibo
+weibo_ner_dev: simple_weiboNER_2nd_conll.dev
+weibo_ner_train: simple_weiboNER_2nd_conll.train
+weibo_ner_test: simple_weiboNER_2nd_conll.test
+fewfc_path: FewFC-main
+duee_path: duee
+duie_path: duie
+
+processed_path: ../data/processed
+prompted_path: ../data/prompted

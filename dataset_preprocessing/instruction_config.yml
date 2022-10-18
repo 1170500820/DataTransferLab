@@ -1,0 +1,14 @@
+
+# 微博的
+ner_weibo:
+  PER.NOM: 人名（泛指）
+  PER.NAM: 人名（特指）
+  GPE.NOM: 行政区名（泛指）
+  GPE.NAM: 行政区名（特指）
+  ORG.NOM: 机构名（泛指）
+  ORG.NAM: 机构名（特指）
+  LOC.NOM: 地点名（泛指）
+  LOC.NAM: 地点名（特指）
+
+
+
