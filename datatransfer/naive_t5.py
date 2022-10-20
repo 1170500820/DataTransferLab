@@ -4,7 +4,7 @@
 import numpy as np
 import torch
 from torch.utils.data import Dataset, DataLoader
-from .prepare_dataset import get_dataset
+from datatransfer.prepare_dataset import get_dataset
 import pytorch_lightning as pl
 
 
@@ -103,7 +103,7 @@ class T5FineTuner(pl.LightningModule):
         return tqdm_dict
 
     def train_dataloader(self):
-        train_dataset = get_dataset(tokenizer=self.tokenizer, 'train')
+        train_dataset = get_dataset(tokenizer=self.tokenizer, data_type='train')
         dataloader = DataLoader(train_dataset, batch_size=self.hparams.train_batch_size, drop_last=True, shuffle=True,
                                 num_workers=4)
         t_total = (
@@ -118,6 +118,6 @@ class T5FineTuner(pl.LightningModule):
         return dataloader
 
     def val_dataloader(self):
-        val_dataset = get_dataset(tokenizer=self.tokenizer, type_path="val", args=self.hparams)
+        val_dataset = get_dataset(tokenizer=self.tokenizer, data_type="test")
         return DataLoader(val_dataset, batch_size=self.hparams.eval_batch_size, num_workers=4)
 
