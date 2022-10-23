@@ -6,6 +6,9 @@ import argparse
 import numpy as np
 from tqdm import tqdm
 
+import sys
+sys.path.append('..')
+
 import torch
 from torch.utils.data import DataLoader
 import pytorch_lightning as pl
@@ -34,7 +37,7 @@ class LoggingCallback(pl.Callback):
 
 # 一些全局配置参数
 global_seed = 42
-model_name = 'google/mt5-medium'
+model_name = 'google/mt5-base'
 
 # 用于训练与模型的参数
 args_dict = dict(
@@ -65,7 +68,7 @@ def main(args_dict):
     args = argparse.Namespace(**args_dict)
     train_params = dict(
         accumulate_grad_batches=args.accumulate_grad_batches,
-        gpus=args.n_gpu,
+        gpus=args.n_gpus,
         max_epochs=args.num_train_epochs,
         precision=32,
     )

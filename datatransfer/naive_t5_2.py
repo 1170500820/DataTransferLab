@@ -18,7 +18,9 @@ from transformers import (
 
 class T5FineTuner(pl.LightningModule):
     def __init__(self, model_name_or_path, params):
-        super(T5FineTuner, self).__init__(**params)
+        super(T5FineTuner, self).__init__()
+
+        self.hparams.update(vars(params))
 
         self.model = T5ForConditionalGeneration.from_pretrained(model_name_or_path)
         self.tokenizer = T5Tokenizer.from_pretrained(model_name_or_path)
@@ -30,11 +32,11 @@ class T5FineTuner(pl.LightningModule):
             lm_labels=None
     ):
         return self.model(
-            input_ids,
+            input_ids=input_ids,
             attention_mask=attention_mask,
             decoder_input_ids=decoder_input_ids,
             decoder_attention_mask=decoder_attention_mask,
-            lm_labels=lm_labels,
+            labels=lm_labels,
         )
 
     def _step(self, batch):
@@ -89,10 +91,19 @@ class T5FineTuner(pl.LightningModule):
         self.opt = optimizer
         return [optimizer]
 
-    def optimizer_step(self, epoch, batch_idx, optimizer, optimizer_idx, second_order_closure=None):
-        optimizer.step()
+#    def optimizer_step(self, epoch, batch_idx, optimizer, optimizer_idx, second_order_closure=None):
+#        optimizer.step()
+#        optimizer.zero_grad()
+#        self.lr_scheduler.step()
+
+    def optimizer_step(self,
+            epoch=None, batch_idx=None, optimizer=None, optimizer_idx=None,
+            optimizer_closure=None, on_tpu=None, using_native_amp=None, using_lbfgs=None
+            ):
+        optimizer.step(closure=optimizer_closure)
         optimizer.zero_grad()
         self.lr_scheduler.step()
+
 
     def get_tqdm_dict(self):
         tqdm_dict = {"loss": "{:.3f}".format(self.trainer.avg_loss), "lr": self.lr_scheduler.get_last_lr()[-1]}
@@ -104,8 +115,8 @@ class T5FineTuner(pl.LightningModule):
         dataloader = DataLoader(train_dataset, batch_size=self.hparams.train_batch_size, drop_last=True, shuffle=True,
                                 num_workers=4)
         t_total = (
-                (len(dataloader.dataset) // (self.hparams.train_batch_size * max(1, self.hparams.n_gpu)))
-                // self.hparams.gradient_accumulation_steps
+                (len(dataloader.dataset) // (self.hparams.train_batch_size * max(1, self.hparams.n_gpus)))
+                // self.hparams.accumulate_grad_batches
                 * float(self.hparams.num_train_epochs)
         )
         scheduler = get_linear_schedule_with_warmup(
