@@ -37,7 +37,9 @@ class LoggingCallback(pl.Callback):
 
 # 一些全局配置参数
 global_seed = 42
-model_name = 'google/mt5-base'
+model_name = 'google/mt5-small'
+train_batch_size=4
+grad_acc=4
 
 # 用于训练与模型的参数
 args_dict = dict(
@@ -49,10 +51,10 @@ args_dict = dict(
     warmup_steps=0,
 
     # 训练参数
-    train_batch_size=2,
+    train_batch_size=train_batch_size,
     eval_batch_size=2,
     num_train_epochs=5,
-    accumulate_grad_batches=1,
+    accumulate_grad_batches=grad_acc,
     n_gpus=1,
 
     # 随机数种子配置
