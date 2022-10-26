@@ -17,13 +17,13 @@ from transformers import (
 
 
 class T5FineTuner(pl.LightningModule):
-    def __init__(self, model_name_or_path, params):
+    def __init__(self, model_name_or_path='google/mt5-small', params=None):
         super(T5FineTuner, self).__init__()
-
+        self.save_hyperparameters('model_name_or_path')
         self.hparams.update(vars(params))
 
-        self.model = T5ForConditionalGeneration.from_pretrained(model_name_or_path)
-        self.tokenizer = T5Tokenizer.from_pretrained(model_name_or_path)
+        self.model = T5ForConditionalGeneration.from_pretrained(self.hparams.model_name_or_path)
+        self.tokenizer = T5Tokenizer.from_pretrained(self.hparams.model_name_or_path)
 
     def forward(
             self,
@@ -54,9 +54,8 @@ class T5FineTuner(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         loss = self._step(batch)
-
-        tensorboard_logs = {"train_loss": loss}
-        return {"loss": loss, "log": tensorboard_logs}
+        self.log('loss', float(loss))
+        return loss
 
     def training_epoch_end(self, outputs):
         avg_train_loss = torch.stack([x["loss"] for x in outputs]).mean()
