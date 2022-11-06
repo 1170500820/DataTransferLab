@@ -68,9 +68,6 @@ def get_logger(config):
 def get_callbacks(config):
     return [ModelCheckpoint(
         dirpath=config['dirpath'],
-        every_n_epochs=config['every_n_epochs'],
-        save_top_k=config['save_top_k'],
-        monitor=config['monitor']
     )]
 
 
