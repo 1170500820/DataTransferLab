@@ -117,14 +117,14 @@ class DuIE_Dataset(Dataset):
 
     def _build(self):
         for elem in self.raw_file:
-            inp = elem['input'] + ' </s>'
-            tgt = elem['target'] + ' </s>'
+            inp = elem['input']
+            tgt = elem['target']
 
             tokenized_inp = self.tokenizer.batch_encode_plus(
-                [inp], max_length=self.max_len, pad_to_max_length=True, return_tensors='pt'
+                [inp], max_length=self.max_len, padding=True, return_tensors='pt', truncation=True
             )
             tokenized_tgt = self.tokenizer.batch_encode_plus(
-                [tgt], max_length=self.max_len, pad_to_max_length=True, return_tensors='pt'
+                [tgt], max_length=self.max_len, padding=True, return_tensors='pt', truncation=True
             )
 
             self.inputs.append(tokenized_inp)

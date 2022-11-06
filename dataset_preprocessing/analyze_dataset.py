@@ -114,9 +114,19 @@ def show_processed_dataset():
         counts[e] = len(d)
     print_dict_as_table(counts)
 
+
+def show_prompted_dataset():
+    files = os.listdir('../data/prompted/')
+    counts = {}
+    for e in tqdm(files):
+        d = list(json.loads(x) for x in open(os.path.join('../data/prompted', e), 'r', encoding='utf-8').read().strip().split('\n'))
+        counts[e] = len(d)
+    print_dict_as_table(counts)
+
 if __name__ == '__main__':
     # tag_dict = find_weibo_ner_types()
     # find_weibo_ner_property()
     # ct = find_AdvertiseGen_content()
     # tree = parse_CEC_XML()
-    show_processed_dataset()
+    # show_processed_dataset()
+    show_prompted_dataset()
