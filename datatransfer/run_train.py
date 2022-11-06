@@ -33,7 +33,7 @@ conf = dict(
     train_batch_size=batchsize,
     eval_batch_size=2,
     max_epochs=epochs,
-    gpus=1,
+    n_gpus=1,
     accumulate_grad_batches=4,
 
     # 日志控制
@@ -60,25 +60,38 @@ def get_logger(config):
 
 def get_callbacks(config):
     return [ModelCheckpoint(
-        dirpath=config['ckp_dir'],
+        dirpath=config['dirpath'],
         every_n_epochs=config['every_n_epochs']
     )]
 
 
 def train(config):
     logger = get_logger(config)
-    checkpoint_callback = get_callbacks(config)
+    callbacks = get_callbacks(config)
 
     train_params = dict(
         accumulate_grad_batches=config['accumulate_grad_batches'],
         gpus=config['n_gpus'],
-        max_epochs=config['num_train_epochs'],
+        max_epochs=config['max_epochs'],
         precision=32,
         logger=logger,
-        callbacks=[checkpoint_callback]
+        callbacks=callbacks
+    )
+    model_params = dict(
+        weight_decay=config['weight_decay'],
+        model_name=config['model_name'],
+        learning_rate=config['learning_rate'],
+        adam_epsilon=config['adam_epsilon'],
+        max_seq_length=config['max_seq_length'],
+        warmup_steps=config['warmup_steps'],
+        train_batch_size=config['train_batch_size'],
+        n_gpus=config['n_gpus'],
+        accumulate_grad_batches=config['accumulate_grad_batches'],
+        num_train_epochs=config['max_epochs'],
+        eval_batch_size=config['eval_batch_size'] 
     )
 
-    model = T5FineTuner(config)
+    model = T5FineTuner(model_params)
     trainer = pl.Trainer(**train_params)
     trainer.fit(model)
 

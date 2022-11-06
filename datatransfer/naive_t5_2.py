@@ -125,6 +125,6 @@ class T5FineTuner(pl.LightningModule):
         return dataloader
 
     def val_dataloader(self):
-        val_dataset = get_dataset(tokenizer=self.tokenizer, data_type="test")
+        val_dataset = get_dataset(tokenizer=self.tokenizer, data_type="dev")
         return DataLoader(val_dataset, batch_size=self.hparams.eval_batch_size, num_workers=4)
 
