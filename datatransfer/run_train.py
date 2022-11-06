@@ -15,7 +15,8 @@ from datatransfer.naive_t5_2 import T5FineTuner
 
 # 一些重要参数需要单独列出
 name = 't5-small-duie'
-batchsize = 4
+batchsize = 2
+n_gpus = 4
 epochs = 6
 conf = dict(
     # 随机种子
@@ -31,10 +32,12 @@ conf = dict(
 
     # 训练参数
     train_batch_size=batchsize,
-    eval_batch_size=2,
+    eval_batch_size=batchsize,
     max_epochs=epochs,
-    n_gpus=1,
-    accumulate_grad_batches=4,
+    n_gpus=n_gpus,
+    accumulate_grad_batches=2,
+    strategy='ddp',
+    accelerator='gpu',
 
     # 日志控制
     logger_dir='tb_log/',
@@ -72,7 +75,10 @@ def train(config):
     train_params = dict(
         accumulate_grad_batches=config['accumulate_grad_batches'],
         gpus=config['n_gpus'],
+        accelerator=config['accelerator'],
+        devices=config['n_gpus'],
         max_epochs=config['max_epochs'],
+        strategy=config['strategy'],
         precision=32,
         logger=logger,
         callbacks=callbacks
