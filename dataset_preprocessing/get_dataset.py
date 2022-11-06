@@ -22,3 +22,19 @@ def get_weiboner():
         'dev': dev_result,
         'test': test_result
     }
+
+
+def get_AdvertiseGen():
+    pass
+
+def get_duie():
+    processed_path = path_config['processed_path']
+    duie_train = os.path.join(processed_path, 'duie_train.json')
+    duie_valid = os.path.join(processed_path, 'duie_valid.json')
+
+    train_result = json.load(open(duie_train, 'r', encoding='utf-8'))
+    valid_result = json.load(open(duie_valid, 'r', encoding='utf-8'))
+    return {
+        'train': train_result,
+        'dev': valid_result
+    }

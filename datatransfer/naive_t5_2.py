@@ -17,13 +17,13 @@ from transformers import (
 
 
 class T5FineTuner(pl.LightningModule):
-    def __init__(self, model_name_or_path='google/mt5-small', params=None):
+    def __init__(self, params=None):
         super(T5FineTuner, self).__init__()
-        self.save_hyperparameters('model_name_or_path')
-        self.hparams.update(vars(params))
+        if params is not None:
+            self.hparams.update(params)
 
-        self.model = T5ForConditionalGeneration.from_pretrained(self.hparams.model_name_or_path)
-        self.tokenizer = T5Tokenizer.from_pretrained(self.hparams.model_name_or_path)
+        self.model = T5ForConditionalGeneration.from_pretrained(self.hparams.model_name)
+        self.tokenizer = T5Tokenizer.from_pretrained(self.hparams.model_name)
 
     def forward(
             self,

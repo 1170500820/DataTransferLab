@@ -1,6 +1,7 @@
 import os
 from typing import List, Dict, Tuple, Any
 import json
+from tqdm import tqdm
 
 dataset_path = '../data'
 weibo_dataset_path = 'Weibo'
@@ -153,6 +154,21 @@ def conll2dict(lines):
     return result
 
 
+def convert_jsonl_to_json(name, d: Dict[str, str]):
+    """
+    :param d: {'train': path}
+    :return:
+    """
+    for key, value in d.items():
+        lst = list(json.loads(x) for x in open(value, 'r', encoding='utf-8').read().strip().split('\n'))
+        json.dump(lst, open(f'../data/processed/{name}-{key}.json', 'w', encoding='utf-8'), ensure_ascii=False)
+
+
+def convert_CEC_XML(tree):
+    root = tree.getroot()
+    node = list(root)
+
+
 def process_weibo():
     train_filename = os.path.join(dataset_path, weibo_dataset_path, weibo_ner_train)
     dev_filename = os.path.join(dataset_path, weibo_dataset_path, weibo_ner_dev)
@@ -191,7 +207,7 @@ def load_FewFC_ee(file_dir: str, splitted=True):
         file_dir += '/'
     if splitted:
         test_file = 'test.json'
-        train_file = 'train.json'
+        train_file = 'AFQMC_train.json'
         val_file = 'val.json'
         test_data = list(json.loads(x) for x in open(file_dir + test_file, 'r', encoding='utf-8').read().strip().split('\n'))
         train_data = list(json.loads(x) for x in open(file_dir + train_file, 'r', encoding='utf-8').read().strip().split('\n'))
@@ -388,7 +404,100 @@ def process_duie():
     json.dump(duie_valid, open('../data/processed/duie_valid.json', 'w', encoding='utf-8'), ensure_ascii=False)
 
 
+def parse_AdvertiseGen():
+    dev_path = '../data/AdvertiseGen/dev.json'
+    train_path = '../data/AdvertiseGen/train.json'
+
+    dev = list(json.loads(x) for x in open(dev_path, 'r', encoding='utf-8').read().strip().split('\n'))
+    train = list(json.loads(x) for x in open(train_path, 'r', encoding='utf-8').read().strip().split('\n'))
+
+    for dataname, dataset in zip(['dev', 'train'], [dev, train]):
+        print(f'processing {dataname}')
+        result = []
+        for e in tqdm(dataset):
+            contentd = {}
+            content = e['content']
+            for einfo in content.split('*'):
+                et, ei = einfo.split('#')
+                if et not in contentd:
+                    contentd[et] = [ei]
+                else:
+                    contentd[et].append(ei)
+            result.append({
+                'content': contentd,
+                'summary': e['summary']
+            })
+        json.dump(result, open(f'../data/processed/AdvertiseGen_{dataname}.json', 'w', encoding='utf-8'), ensure_ascii=False)
+
+
+def process_AFQMC():
+    dev_path = '../data/AFQMC/dev.json'
+    train_path = '../data/AFQMC/train.json'
+    dev = list(json.loads(x) for x in open(dev_path).read().strip().split('\n'))
+    train = list(json.loads(x) for x in open(train_path).read().strip().split('\n'))
+
+    json.dump(dev, open('../data/processed/AFQMC_dev.json', 'w', encoding='utf-8'), ensure_ascii=False)
+    json.dump(train, open('../data/processed/AFQMC_train.json', 'w', encoding='utf-8'), ensure_ascii=False)
+
+
+def process_C3():
+    convert_jsonl_to_json('C3d', {
+        'train': '../data/C3/new_d-train.json',
+        'dev': '../data/C3/new_d-dev.json'
+    })
+    convert_jsonl_to_json('C3m', {
+        'train': '../data/C3/new_m-train.json',
+        'dev': '../data/C3/new_m-dev.json'
+    })
+
+
+def process_CCPM():
+    convert_jsonl_to_json('CCPM', {
+        'train': '../data/CCPM/train.jsonl',
+        'dev': '../data/CCPM/dev.jsonl'
+    })
+
+
+def process_CHID():
+    convert_jsonl_to_json('CHID', {
+        'train': '../data/CHID/new_train.json',
+        'dev': '../data/CHID/new_dev.json'
+    })
+
+
+def process_CLUENER():
+    convert_jsonl_to_json('CLUENER', {
+        'train': '../data/CLUENER/new_train.json',
+        'dev': '../data/CLUENER/new_dev.json'
+    })
+
+
+def process_CMeEE():
+    convert_jsonl_to_json('CMeEE', {
+        'train': '../data/CMeEE/train.jsonl',
+        'dev': '../data/CMeEE/dev.jsonl'
+    })
+
+
+def process_CMNLI():
+    convert_jsonl_to_json('CMNLI', {
+        'train': '../data/CMNLI/train.json',
+        'dev': '../data/CMNLI/dev.json'
+    })
+
+
+
+
+
 if __name__ == '__main__':
-    process_weibo()
+    # process_weibo()
     # process_duee_and_fewfc()
     # process_duie()
+    # parse_AdvertiseGen()
+    process_AFQMC()
+    process_C3()
+    process_CCPM()
+    process_CHID()
+    process_CLUENER()
+    process_CMeEE()
+    process_CMNLI()
