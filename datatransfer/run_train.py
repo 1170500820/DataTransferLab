@@ -17,7 +17,7 @@ from datatransfer.naive_t5_2 import T5FineTuner
 name = 't5-small-duie'
 batchsize = 2
 n_gpus = 4
-epochs = 6
+epochs = 4
 conf = dict(
     # 随机种子
     seed=42,
@@ -35,7 +35,7 @@ conf = dict(
     eval_batch_size=batchsize,
     max_epochs=epochs,
     n_gpus=n_gpus,
-    accumulate_grad_batches=2,
+    accumulate_grad_batches=4,
     strategy='ddp',
     accelerator='gpu',
 
@@ -43,6 +43,10 @@ conf = dict(
     logger_dir='tb_log/',
     dirpath='t5-checkpoints/',
     every_n_epochs=1,
+
+    # checkpoint
+    save_top_k=4,
+    monitor='val_loss',
 )
 
 
@@ -64,7 +68,9 @@ def get_logger(config):
 def get_callbacks(config):
     return [ModelCheckpoint(
         dirpath=config['dirpath'],
-        every_n_epochs=config['every_n_epochs']
+        every_n_epochs=config['every_n_epochs'],
+        save_top_k=config['save_top_k'],
+        monitor=config['monitor']
     )]
 
 
@@ -74,7 +80,6 @@ def train(config):
 
     train_params = dict(
         accumulate_grad_batches=config['accumulate_grad_batches'],
-        gpus=config['n_gpus'],
         accelerator=config['accelerator'],
         devices=config['n_gpus'],
         max_epochs=config['max_epochs'],

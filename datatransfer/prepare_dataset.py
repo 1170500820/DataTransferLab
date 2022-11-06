@@ -121,10 +121,10 @@ class DuIE_Dataset(Dataset):
             tgt = elem['target']
 
             tokenized_inp = self.tokenizer.batch_encode_plus(
-                [inp], max_length=self.max_len, padding=True, return_tensors='pt', truncation=True
+                [inp], max_length=self.max_len, padding='max_length', return_tensors='pt', truncation=True
             )
             tokenized_tgt = self.tokenizer.batch_encode_plus(
-                [tgt], max_length=self.max_len, padding=True, return_tensors='pt', truncation=True
+                [tgt], max_length=self.max_len, padding='max_length', return_tensors='pt', truncation=True
             )
 
             self.inputs.append(tokenized_inp)
