@@ -4,8 +4,12 @@
 - 类别比例
 - ...
 """
-
+from datatransfer.utils import *
+from collections import Counter
 from get_dataset import *
+from tqdm import tqdm
+import re
+import xml.etree.ElementTree as ET
 
 
 def find_weibo_ner_types():
@@ -56,8 +60,63 @@ def find_weibo_ner_property():
         print(f'split {splt}: \ntotal: {total}, empty: {empty_count}, range: {lrange}, avg: {lavg}')
 
 
+def find_AdvertiseGen_content():
+
+    def check_format(s):
+        infos = s.split('*')
+        for e in infos:
+            et, ei = e.split('#')
+            if not et or not ei:
+                return False
+        return True
+
+    dev_path = '../data/AdvertiseGen/dev.json'
+    train_path = '../data/AdvertiseGen/train.json'
+    dev = list(json.loads(x) for x in open(dev_path, 'r', encoding='utf-8').read().strip().split('\n'))
+    train = list(json.loads(x) for x in open(train_path, 'r', encoding='utf-8').read().strip().split('\n'))
+    contents = []
+    for e in dev + train:  contents.append(e['content'])
+    print('opened')
+
+    # s = set()
+    # for e in contents: s.add(check_format(e))
+    # print(s)
+    content_dict = {}
+    for e in tqdm(contents):
+        # infos = e.split('*#')
+        infos = re.split('[*|#]', e)
+        for i in range(len(infos) // 2):
+            et, ei = infos[2 * i], infos[2 * i + 1]
+            if et not in contents:
+                content_dict[et] = [ei]
+            else:
+                content_dict[et].append(ei)
+    print('parsed')
+    content_count = {}
+    for k, v in tqdm(content_dict.items()):
+        content_count[k] = Counter(v)
+    print('counted')
+    return content_count
+
+
+def parse_CEC_XML():
+    cec_path = '../data/CEC/CEC-Corpus-master/CEC/交通事故/17岁少女殒命搅拌车下.xml'
+    tree = ET.parse(cec_path)
+    return tree
+
+
+
+def show_processed_dataset():
+    files = os.listdir('../data/processed/')
+    counts = {}
+    for e in tqdm(files):
+        d = json.load(open(os.path.join('../data/processed/', e), 'r', encoding='utf-8'))
+        counts[e] = len(d)
+    print_dict_as_table(counts)
 
 if __name__ == '__main__':
     # tag_dict = find_weibo_ner_types()
-    find_weibo_ner_property()
-
+    # find_weibo_ner_property()
+    # ct = find_AdvertiseGen_content()
+    # tree = parse_CEC_XML()
+    show_processed_dataset()
