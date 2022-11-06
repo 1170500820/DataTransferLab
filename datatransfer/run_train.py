@@ -15,7 +15,7 @@ from datatransfer.naive_t5_2 import T5FineTuner
 
 # 一些重要参数需要单独列出
 name = 't5-small-duie'
-batchsize = 2
+batchsize = 3
 n_gpus = 4
 epochs = 4
 conf = dict(
