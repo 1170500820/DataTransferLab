@@ -90,7 +90,8 @@ def get_logger(config):
 def get_callbacks(config):
     return [ModelCheckpoint(
         dirpath=config['dirpath'],
-        save_top_k=config['save_top_k']
+        save_top_k=config['save_top_k'],
+        filename=config['name'] + '.' + '{epoch}-{val_loss:.2f}'
     )]
 
 
