@@ -106,9 +106,11 @@ class IeDataset(Dataset):
 
 
 class DuIE_Dataset(Dataset):
-    def __init__(self, tokenizer, data_type: str, prompt_type='raw', max_len=512):
-        self.raw_file = list(json.loads(x) for x in open(f'../data/prompted/duie_{data_type}.jsonl', 'r', encoding='utf-8').read().strip().split('\n'))
-
+    def __init__(self, tokenizer, data_type: str, prompt_type='', max_len=512):
+        if prompt_type == '':  # 默认格式
+            self.raw_file = list(json.loads(x) for x in open(f'../data/prompted/duie_{data_type}.jsonl', 'r', encoding='utf-8').read().strip().split('\n'))
+        else:
+            self.raw_file = list(json.loads(x) for x in open(f'../data/prompted/duie_{prompt_type}_{data_type}.jsonl', 'r', encoding='utf-8').read().strip().split('\n'))
         self.prompt_type = prompt_type
         self.tokenizer = tokenizer
         self.max_len = max_len
@@ -144,6 +146,6 @@ class DuIE_Dataset(Dataset):
         return {"source_ids": source_ids, "source_mask": src_mask, "target_ids": target_ids, "target_mask": target_mask}
 
 
-def get_dataset(tokenizer, data_type='train'):
+def get_dataset(tokenizer, data_type='train', prompt_type=''):
     # return IeDataset(tokenizer=tokenizer, data_type=data_type)
-    return DuIE_Dataset(tokenizer=tokenizer, data_type=data_type)
+    return DuIE_Dataset(tokenizer=tokenizer, data_type=data_type, prompt_type=prompt_type)

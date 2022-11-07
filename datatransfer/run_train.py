@@ -21,6 +21,8 @@ def handle_cli():
     parser.add_argument('--n_gpus', type=int, default=1)
     parser.add_argument('--epoch', type=int, default=5)
     parser.add_argument('--name', type=str, default='TaskTransfer_default')
+    parser.add_argument('--prompt_type', type=str, choices=['find_object', 'find_subject', 'find_relation',
+                                                            'hybrid_find'], default='')
 
     args = vars(parser.parse_args())
 
@@ -46,6 +48,9 @@ def handle_cli():
         weight_decay=0.1,
         adam_epsilon=1e-3,
         warmup_steps=0,
+
+        # 训练数据
+        prompt_type=args['prompt_type'],
 
         # 训练参数
         train_batch_size=args['bsz'],
