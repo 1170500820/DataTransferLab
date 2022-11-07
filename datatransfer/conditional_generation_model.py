@@ -9,7 +9,7 @@ from transformers import (
     T5ForConditionalGeneration,
     T5Tokenizer,
     BartForConditionalGeneration,
-    BartTokenizer,
+    BertTokenizer,
     get_linear_schedule_with_warmup
 )
 
@@ -139,4 +139,4 @@ class BartFineTuner(CG_FineTuner):
             self.hparams.update(params)
 
         self.model = BartForConditionalGeneration.from_pretrained(self.hparams.model_name)
-        self.tokenizer = T5Tokenizer.from_pretrained(self.hparams.model_name)
+        self.tokenizer = BertTokenizer.from_pretrained(self.hparams.model_name)
