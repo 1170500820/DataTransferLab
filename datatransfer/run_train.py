@@ -141,4 +141,5 @@ def train(config):
 
 if __name__ == '__main__':
     conf = handle_cli()
+    # print(conf)
     train(conf)
