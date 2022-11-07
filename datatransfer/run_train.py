@@ -62,7 +62,7 @@ def handle_cli():
         every_n_epochs=1,
 
         # checkpoint
-        save_top_k=4,
+        save_top_k=-1,
         monitor='val_loss',
     )
     return conf
@@ -85,6 +85,7 @@ def get_logger(config):
 def get_callbacks(config):
     return [ModelCheckpoint(
         dirpath=config['dirpath'],
+        save_top_k=config['save_top_k']
     )]
 
 
