@@ -130,7 +130,8 @@ def train(config):
         n_gpus=config['n_gpus'],
         accumulate_grad_batches=config['accumulate_grad_batches'],
         num_train_epochs=config['max_epochs'],
-        eval_batch_size=config['eval_batch_size'] 
+        eval_batch_size=config['eval_batch_size'],
+        prompt_type=config['prompt_type']
     )
 
     if config['model'] == 't5':
