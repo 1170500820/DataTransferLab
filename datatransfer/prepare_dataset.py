@@ -4,8 +4,10 @@
 import os
 import glob
 import re
+from tqdm import tqdm
 import json
 from torch.utils.data import Dataset
+from transformers import T5Tokenizer, T5TokenizerFast, BertTokenizer, BertTokenizerFast
 
 
 class ImdbDataset(Dataset):
@@ -70,15 +72,17 @@ class ImdbDataset(Dataset):
 # 用于ie实验的混合数据集。混合方式会在里面确定
 class IeDataset(Dataset):
     def __init__(self, tokenizer, data_type: str, max_len=512):
+        print('    loading raw data')
         self.raw_file = list(json.loads(x) for x in open(f'../data/prompted/ner_weibo_{data_type}.jsonl', 'r', encoding='utf-8').read().strip().split('\n'))
 
         self.max_len = max_len
         self.tokenizer = tokenizer
         self.inputs, self.targets = [], []
+        print('    _build() running')
         self._build()
 
     def _build(self):
-        for elem in self.raw_file:
+        for elem in tqdm(self.raw_file):
             inp = elem['input'] + ' </s>'
             tgt = elem['target'] + ' </s>'
 
@@ -107,6 +111,7 @@ class IeDataset(Dataset):
 
 class DuIE_Dataset(Dataset):
     def __init__(self, tokenizer, data_type: str, prompt_type='', max_len=512):
+        print('    loading raw file')
         if prompt_type == '':  # 默认格式
             self.raw_file = list(json.loads(x) for x in open(f'../data/prompted/duie_{data_type}.jsonl', 'r', encoding='utf-8').read().strip().split('\n'))
         else:
@@ -115,10 +120,11 @@ class DuIE_Dataset(Dataset):
         self.tokenizer = tokenizer
         self.max_len = max_len
         self.inputs, self.targets = [], []
+        print('    _build running')
         self._build()
 
     def _build(self):
-        for elem in self.raw_file:
+        for elem in tqdm(self.raw_file):
             inp = elem['input']
             tgt = elem['target']
 
@@ -149,3 +155,10 @@ class DuIE_Dataset(Dataset):
 def get_dataset(tokenizer, data_type='train', prompt_type=''):
     # return IeDataset(tokenizer=tokenizer, data_type=data_type)
     return DuIE_Dataset(tokenizer=tokenizer, data_type=data_type, prompt_type=prompt_type)
+
+
+if __name__ == '__main__':
+    print('building tokenizer')
+    bert_tokenizer = BertTokenizer.from_pretrained('fnlp/bart-base-chinese')
+    print('building dataset')
+    duie = DuIE_Dataset(bert_tokenizer, 'train', 'find_object')
