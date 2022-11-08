@@ -134,13 +134,15 @@ def train(config):
         eval_batch_size=config['eval_batch_size'],
         prompt_type=config['prompt_type']
     )
-
+    print(f'正在加载模型{config["model_name"]}')
     if config['model'] == 't5':
         model = T5FineTuner(model_params)
     else:  # config['model'] == 'bart'
         model = BartFineTuner(model_params)
-
+    print('模型加载完毕')
+    print('正在加载Trainer')
     trainer = pl.Trainer(**train_params)
+    print('Trainer加载完毕，开始fit！')
     trainer.fit(model)
 
 

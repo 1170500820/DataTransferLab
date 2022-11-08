@@ -3,6 +3,7 @@
 """
 import os
 import glob
+import pickle
 import re
 from tqdm import tqdm
 import json
@@ -110,18 +111,21 @@ class IeDataset(Dataset):
 
 
 class DuIE_Dataset(Dataset):
-    def __init__(self, tokenizer, data_type: str, prompt_type='', max_len=512):
-        print('    loading raw file')
-        if prompt_type == '':  # 默认格式
-            self.raw_file = list(json.loads(x) for x in open(f'../data/prompted/duie_{data_type}.jsonl', 'r', encoding='utf-8').read().strip().split('\n'))
-        else:
-            self.raw_file = list(json.loads(x) for x in open(f'../data/prompted/duie_{prompt_type}_{data_type}.jsonl', 'r', encoding='utf-8').read().strip().split('\n'))
+    def __init__(self, tokenizer, data_type: str, prompt_type='', max_len=512, use_cache=True):
+        if prompt_type == '':  fname = f'../data/prompted/duie_{data_type}.jsonl'
+        else:  fname = f'../data/prompted/duie_{prompt_type}_{data_type}.jsonl'
+
+        self.raw_file = list(json.loads(x) for x in open(fname, 'r', encoding='utf-8').read().strip().split('\n'))
         self.prompt_type = prompt_type
         self.tokenizer = tokenizer
         self.max_len = max_len
         self.inputs, self.targets = [], []
-        print('    _build running')
-        self._build()
+        if use_cache and os.path.exists(fname + '.cache'):
+            self.inputs, self.targets = pickle.load(open(fname + '.cache', 'rb'))
+        else:
+            self._build()
+            if use_cache:
+                pickle.dump([self.inputs, self.targets], open(fname + '.cache', 'wb'))
 
     def _build(self):
         for elem in tqdm(self.raw_file):

@@ -116,6 +116,10 @@ def show_processed_dataset():
 
 
 def show_prompted_dataset():
+    """
+    如果报错了，尝试在终端输入rm .DS_store
+    :return:
+    """
     files = os.listdir('../data/prompted/')
     counts = {}
     for e in tqdm(files):
