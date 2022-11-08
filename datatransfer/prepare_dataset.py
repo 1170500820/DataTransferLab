@@ -5,6 +5,7 @@ import os
 import glob
 import pickle
 import re
+from loguru import logger
 from tqdm import tqdm
 import json
 from torch.utils.data import Dataset
@@ -121,10 +122,12 @@ class DuIE_Dataset(Dataset):
         self.max_len = max_len
         self.inputs, self.targets = [], []
         if use_cache and os.path.exists(fname + '.cache'):
+            logger.info('Load from cache.')
             self.inputs, self.targets = pickle.load(open(fname + '.cache', 'rb'))
         else:
             self._build()
             if use_cache:
+                logger.info('Cached.')
                 pickle.dump([self.inputs, self.targets], open(fname + '.cache', 'wb'))
 
     def _build(self):
