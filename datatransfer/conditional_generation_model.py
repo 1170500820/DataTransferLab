@@ -16,6 +16,7 @@ from transformers import (
 
 from datatransfer.prepare_dataset import get_dataset
 
+nw = 24
 
 class CG_FineTuner(pl.LightningModule):
     def forward(
@@ -105,7 +106,7 @@ class CG_FineTuner(pl.LightningModule):
     def train_dataloader(self):
         train_dataset = get_dataset(tokenizer=self.tokenizer, data_type='train', prompt_type=self.hparams.prompt_type)
         dataloader = DataLoader(train_dataset, batch_size=self.hparams.train_batch_size, drop_last=True, shuffle=True,
-                                num_workers=0)
+                                num_workers=nw)
         t_total = (
                 (len(dataloader.dataset) // (self.hparams.train_batch_size * max(1, self.hparams.n_gpus)))
                 // self.hparams.accumulate_grad_batches
@@ -119,7 +120,7 @@ class CG_FineTuner(pl.LightningModule):
 
     def val_dataloader(self):
         val_dataset = get_dataset(tokenizer=self.tokenizer, data_type="dev", prompt_type=self.hparams.prompt_type)
-        return DataLoader(val_dataset, batch_size=self.hparams.eval_batch_size, num_workers=0)
+        return DataLoader(val_dataset, batch_size=self.hparams.eval_batch_size, num_workers=nw)
 
 
 class T5FineTuner(CG_FineTuner):
