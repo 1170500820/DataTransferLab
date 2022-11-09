@@ -3,12 +3,15 @@
 """
 import os
 import glob
+import random
 import pickle
+from typing import List
 import re
+from bisect import bisect
 from loguru import logger
 from tqdm import tqdm
 import json
-from torch.utils.data import Dataset
+from torch.utils.data import Dataset, IterableDataset
 from transformers import T5Tokenizer, T5TokenizerFast, BertTokenizer, BertTokenizerFast
 
 
@@ -174,13 +177,106 @@ class DuIE_Dataset(Dataset):
         return {"source_ids": source_ids, "source_mask": src_mask, "target_ids": target_ids, "target_mask": target_mask}
 
 
+class DatasetCompactor:
+    def __init__(self, lengths: List[int], max_length: int = 512, seed: int = 42):
+        random.seed(seed)
+        self.lengths = lengths
+        self.l = len(self.lengths)
+        self.max_length = max_length
+        self.idx = list(range(self.l))
+
+        comp = list(zip(self.lengths, self.idx))
+        comp.sort()
+        self.lengths, self.idx = list(zip(*comp))
+        self.lengths, self.idx = list(self.lengths), list(self.idx)
+
+        self.extra_size = 2
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        if len(self.idx) == 0:
+            raise StopIteration()
+        total_l = 0  # 累积的序列长度。序列长度>=token序列长度
+        chosen = []
+        # 先随机选一个
+        first = random.randint(0, len(self.idx) - 1)
+        first_i, first_l = self.idx.pop(first), self.lengths.pop(first)
+        total_l = first_l + 1 + self.extra_size
+        chosen.append(first_i)
+
+        while total_l < self.max_length and self.idx:
+            left_l = self.max_length - total_l - 1 - self.extra_size
+            border = bisect(self.lengths, left_l)
+            if border == 0:
+                break
+
+            another = random.randint(0, border - 1)
+            another_i, another_l = self.idx.pop(another), self.lengths.pop(another)
+            total_l += another_l + 1 + self.extra_size
+            chosen.append(another_i)
+        return chosen
+
+
+class DuIECompactDataset(Dataset):
+    def __init__(self, tokenizer, data_type: str='train', prompt_type: str='', max_len: int=512, seed: int=42):
+        super(DuIECompactDataset, self).__init__()
+        if prompt_type == '':  fname = f'../data/prompted/duie_{data_type}.jsonl'
+        else:  fname = f'../data/prompted/duie_{prompt_type}_{data_type}.jsonl'
+
+        self.raw_file = list(json.loads(x) for x in open(fname, 'r', encoding='utf-8').read().strip().split('\n'))
+        lengths = list(len(x['input']) for x in self.raw_file)
+        self.comp = list(DatasetCompactor(lengths, max_len, seed))
+        self.prompt_type = prompt_type
+        self.tokenizer = tokenizer
+        self.max_len = max_len
+
+        self.extra_id_0 = 250099
+
+    def __len__(self):
+        return len(self.comp)
+
+    def __getitem__(self, index):
+        ci = self.comp[index]
+        inp, tgt = self._concat(ci)
+        tokenized_inp = self.tokenizer.batch_encode_plus(
+            [inp], max_length=self.max_len, padding='max_length', return_tensors='pt', truncation=True
+        )
+        tokenized_tgt = self.tokenizer.batch_encode_plus(
+            [tgt], max_length=self.max_len, padding='max_length', return_tensors='pt', truncation=True
+        )
+        source_ids = tokenized_inp['input_ids'].squeeze()
+        target_ids = tokenized_tgt['input_ids'].squeeze()
+        src_mask = tokenized_inp['attention_mask'].squeeze()
+        tgt_mask = tokenized_tgt['attention_mask'].squeeze()
+        return {
+            'source_ids': source_ids,
+            'source_mask': src_mask,
+            'target_ids': target_ids,
+            'target_mask': tgt_mask
+        }
+
+    def _concat(self, compact_idxs):
+        inputs, targets = [], []
+        for i in compact_idxs:
+            inputs.append(self.raw_file[i]['input'])
+            targets.append(self.raw_file[i]['target'])
+        input_str, target_str = '', ''
+        for i, (e_input, e_target) in enumerate(zip(inputs, targets)):
+            input_str = input_str + e_input + f'<extra_id_{i + 1}>' + '. '
+            target_str = target_str + f' <extra_id_{i + 1}> ' + e_target
+        return input_str, target_str
+
+
+
+
 def get_dataset(tokenizer, data_type='train', prompt_type=''):
     # return IeDataset(tokenizer=tokenizer, data_type=data_type)
     return DuIE_Dataset(tokenizer=tokenizer, data_type=data_type, prompt_type=prompt_type)
 
 
 if __name__ == '__main__':
-    print('building tokenizer')
-    bert_tokenizer = BertTokenizer.from_pretrained('fnlp/bart-base-chinese')
-    print('building dataset')
-    duie = DuIE_Dataset(bert_tokenizer, 'train', 'find_object')
+    tokenizer = T5Tokenizer.from_pretrained('google/mt5-small')
+    duie = DuIECompactDataset(tokenizer, 'train', 'find_object')
+    d = list(next(iter(duie)) for x in range(30))
