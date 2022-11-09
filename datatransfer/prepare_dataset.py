@@ -112,7 +112,7 @@ class IeDataset(Dataset):
 
 
 class DuIE_Dataset(Dataset):
-    def __init__(self, tokenizer, data_type: str, prompt_type='', max_len=512, lazy_tokenize=True):
+    def __init__(self, tokenizer, data_type: str, prompt_type='', max_len=512, lazy_tokenize=True, no_store=True):
         if prompt_type == '':  fname = f'../data/prompted/duie_{data_type}.jsonl'
         else:  fname = f'../data/prompted/duie_{prompt_type}_{data_type}.jsonl'
 
@@ -121,6 +121,7 @@ class DuIE_Dataset(Dataset):
         self.tokenizer = tokenizer
         self.max_len = max_len
         self.lazy = lazy_tokenize
+        self.no_store = no_store
         if self.lazy:  # 若lazy_tokenize，则需要填充list
             self.inputs, self.targets = [None] * len(self.raw_file), [None] * len(self.raw_file)
         else:
@@ -165,6 +166,10 @@ class DuIE_Dataset(Dataset):
 
         src_mask = self.inputs[index]["attention_mask"].squeeze()  # might need to squeeze
         target_mask = self.targets[index]["attention_mask"].squeeze()  # might need to squeeze
+
+        if self.no_store:
+            self.inputs[index] = None
+            self.targets[index] = None
 
         return {"source_ids": source_ids, "source_mask": src_mask, "target_ids": target_ids, "target_mask": target_mask}
 
