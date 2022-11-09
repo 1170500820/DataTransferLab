@@ -112,7 +112,7 @@ class IeDataset(Dataset):
 
 
 class DuIE_Dataset(Dataset):
-    def __init__(self, tokenizer, data_type: str, prompt_type='', max_len=512, use_cache=True):
+    def __init__(self, tokenizer, data_type: str, prompt_type='', max_len=512, lazy_tokenize=True):
         if prompt_type == '':  fname = f'../data/prompted/duie_{data_type}.jsonl'
         else:  fname = f'../data/prompted/duie_{prompt_type}_{data_type}.jsonl'
 
@@ -120,15 +120,13 @@ class DuIE_Dataset(Dataset):
         self.prompt_type = prompt_type
         self.tokenizer = tokenizer
         self.max_len = max_len
-        self.inputs, self.targets = [], []
-        if use_cache and os.path.exists(fname + '.cache'):
-            logger.info('Load from cache.')
-            self.inputs, self.targets = pickle.load(open(fname + '.cache', 'rb'))
+        self.lazy = lazy_tokenize
+        if self.lazy:  # 若lazy_tokenize，则需要填充list
+            self.inputs, self.targets = [None] * len(self.raw_file), [None] * len(self.raw_file)
         else:
+            self.inputs, self.targets = [], []
+        if not self.lazy:
             self._build()
-            if use_cache:
-                logger.info('Cached.')
-                pickle.dump([self.inputs, self.targets], open(fname + '.cache', 'wb'))
 
     def _build(self):
         for elem in tqdm(self.raw_file):
@@ -147,9 +145,21 @@ class DuIE_Dataset(Dataset):
 
 
     def __len__(self):
-        return len(self.inputs)
+        return len(self.raw_file)
 
     def __getitem__(self, index):
+        if self.lazy and self.inputs[index] is None:
+            elem = self.raw_file[index]
+            inp, tgt = elem['input'], elem['target']
+            tokenized_inp = self.tokenizer.batch_encode_plus(
+                [inp], max_length=self.max_len, padding='max_length', return_tensors='pt', truncation=True
+            )
+            tokenized_tgt = self.tokenizer.batch_encode_plus(
+                [tgt], max_length=self.max_len, padding='max_length', return_tensors='pt', truncation=True
+            )
+            self.inputs[index] = tokenized_inp
+            self.targets[index] = tokenized_tgt
+
         source_ids = self.inputs[index]["input_ids"].squeeze()
         target_ids = self.targets[index]["input_ids"].squeeze()
 
