@@ -123,6 +123,8 @@ def show_prompted_dataset():
     files = os.listdir('../data/prompted/')
     counts = {}
     for e in tqdm(files):
+        if '.cache' in e:
+            continue
         d = list(json.loads(x) for x in open(os.path.join('../data/prompted', e), 'r', encoding='utf-8').read().strip().split('\n'))
         counts[e] = len(d)
     print_dict_as_table(counts)
