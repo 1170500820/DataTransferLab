@@ -32,9 +32,10 @@ headers = {
 }
 
 
-def get_result(prompt: str, model: str='large', max_tokens: int=16, stop: str=',. ，。', n: int=2):
+def get_result(prompt: str, model: str='large', max_tokens: int=16, stop: str=',. ，。', n: int=2, akey: str='cchi48mv9mc753cgstj0'):
     time.sleep(1.95)
     # 限制每2.05秒才能提交一次，这样1分钟绝对不会有超过30次提交。
+    headers['Authorization'] = akey
     response = requests.post(
         url=url,
         data=json.dumps({
