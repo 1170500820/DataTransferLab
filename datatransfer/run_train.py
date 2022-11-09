@@ -23,6 +23,7 @@ def handle_cli():
     parser.add_argument('--name', type=str, default='TaskTransfer_default')
     parser.add_argument('--prompt_type', type=str, choices=['find_object', 'find_subject', 'find_relation',
                                                             'hybrid_find'], default='')
+    parser.add_argument('--grad_acc', type=int, default=4)
 
     args = vars(parser.parse_args())
 
@@ -57,7 +58,7 @@ def handle_cli():
         eval_batch_size=args['bsz'],
         max_epochs=args['epoch'],
         n_gpus=args['n_gpus'],
-        accumulate_grad_batches=4,
+        accumulate_grad_batches=args['grad_acc'],
         strategy='ddp',
         accelerator='gpu',
 
