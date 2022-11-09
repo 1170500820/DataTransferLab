@@ -271,9 +271,12 @@ class DuIECompactDataset(Dataset):
 
 
 
-def get_dataset(tokenizer, data_type='train', prompt_type=''):
+def get_dataset(tokenizer, data_type='train', prompt_type='', compact=False):
     # return IeDataset(tokenizer=tokenizer, data_type=data_type)
-    return DuIE_Dataset(tokenizer=tokenizer, data_type=data_type, prompt_type=prompt_type)
+    if compact:
+        return DuIECompactDataset(tokenizer=tokenizer, data_type=data_type, prompt_type=prompt_type)
+    else:
+        return DuIE_Dataset(tokenizer=tokenizer, data_type=data_type, prompt_type=prompt_type)
 
 
 if __name__ == '__main__':
