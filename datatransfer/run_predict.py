@@ -53,7 +53,7 @@ def handle_cli():
 
         # 训练参数
         train_batch_size=args['bsz'],
-        eval_batch_size=32,
+        eval_batch_size=args['bsz'],
         max_epochs=1,
         n_gpus=1,
         accumulate_grad_batches=4,
