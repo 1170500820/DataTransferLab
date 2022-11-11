@@ -18,12 +18,12 @@ def handle_cli():
     parser = ArgumentParser()
 
     parser.add_argument('--model', type=str, choices=['bart', 't5'], default='t5')
-    parser.add_argument('ckp_file', type=str)
+    parser.add_argument('--ckp_file', type=str)
     parser.add_argument('--bsz', type=int, default=16)
     parser.add_argument('--name', type=str, default='default')
     parser.add_argument('--prompt_type', type=str, choices=['find_object', 'find_subject', 'find_relation',
                                                             'hybrid_find'], default='')
-    parser.add_argument('--bsz', type=int, default=8)
+    parser.add_argument('--length', type=int, default=20)
 
     args = vars(parser.parse_args())
 
@@ -35,6 +35,9 @@ def handle_cli():
     conf = dict(
         # 需要读取的ckp文件，以及需要预测的数据
         checkpoint_path=args['ckp_file'],
+        name=args['name'],
+        length=args['length'],
+        prompt_type=args['prompt_type'],
 
         # 随机种子
         seed=42,
@@ -106,13 +109,13 @@ def predict(config):
         outs = model.model.generate(
             input_ids=batch['source_ids'].cuda(),
             attention_mask=batch['source_mask'].cuda(),
-            max_length=100
+            max_length=config['length']
         )
         dec = [model.tokenizer.decode(ids) for ids in outs]
         target = [model.tokenizer.decode(ids) for ids in batch['target_ids']]
         outputs.extend(dec)
         targets.extend(target)
-    json.dump([outputs, targets], open(f'duie_output.dev.{config["prompt_type"]}.json', 'w', encoding='utf-8'),
+    json.dump([outputs, targets], open(f'{config["name"]}.dev.{config["prompt_type"]}.json', 'w', encoding='utf-8'),
               ensure_ascii=False)
 
 
