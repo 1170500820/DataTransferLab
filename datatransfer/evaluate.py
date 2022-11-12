@@ -1,10 +1,14 @@
 """
 实现一些评价方式
 """
+import sys
+sys.path.append('..')
+
 import json
 from argparse import ArgumentParser
 from sklearn import metrics
 from typing import List
+from datatransfer.utils import print_dict_as_table
 
 def handle_cli():
     parser = ArgumentParser()
@@ -25,9 +29,29 @@ def load_target(dataset: str = 'duie', data_type: str = 'dev', prompt_type: str 
     return targets
 
 
+def evaluate_duie(output: List[str], target: List[str]):
+    total, predict, correct = 0, 0, 0
+    for o, t in zip(output, target):
+        o_preds = set(o.split(','))
+        t_preds = set(t.split(','))
+        total += len(t_preds)
+        predict += len(o_preds)
+        correct += len(o_preds.intersection(t_preds))
+
+    precision = correct / predict if predict != 0 else 0
+    recall = correct / total if total != 0 else 0
+    f1_score = (2 * precision * recall) / (precision + recall) if precision + recall != 0 else 0
+    return {
+        'precision': precision,
+        'recall': recall,
+        'f1_score': f1_score
+    }
+
+
 def calculate(output: List[str], target: List[str]):
-    result = metrics.f1_score(target, output, average='micro')
-    print(result)
+    f1scores = evaluate_duie(output, target)
+
+    print_dict_as_table(f1scores, total=False)
 
 
 if __name__ == '__main__':
