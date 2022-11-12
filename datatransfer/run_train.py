@@ -3,7 +3,7 @@ sys.path.append('..')
 
 import random
 import numpy as np
-from loguru import logger
+from loguru import logger as ru_logger
 from argparse import ArgumentParser
 
 import torch
@@ -112,8 +112,7 @@ def train(config):
             max_epochs=config['max_epochs'],
             precision=32,
             logger=logger,
-            callbacks=callbacks,
-            compact=config['compact']
+            callbacks=callbacks
         )
     else:  # config['n_gpus'] > 1
 
@@ -139,17 +138,18 @@ def train(config):
         accumulate_grad_batches=config['accumulate_grad_batches'],
         num_train_epochs=config['max_epochs'],
         eval_batch_size=config['eval_batch_size'],
-        prompt_type=config['prompt_type']
+        prompt_type=config['prompt_type'],
+        compact=config['compact']
     )
-    logger.info(f'正在加载模型{config["model_name"]}')
+    ru_logger.info(f'正在加载模型{config["model_name"]}')
     if config['model'] == 't5':
         model = T5FineTuner(model_params)
     else:  # config['model'] == 'bart'
         model = BartFineTuner(model_params)
-    logger.info('模型加载完毕')
-    logger.info('正在加载Trainer')
+    ru_logger.info('模型加载完毕')
+    ru_logger.info('正在加载Trainer')
     trainer = pl.Trainer(**train_params)
-    logger.info('Trainer加载完毕，开始fit！')
+    ru_logger.info('Trainer加载完毕，开始fit！')
     trainer.fit(model)
 
 
