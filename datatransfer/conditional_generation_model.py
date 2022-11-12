@@ -104,7 +104,7 @@ class CG_FineTuner(pl.LightningModule):
         return tqdm_dict
 
     def train_dataloader(self):
-        train_dataset = get_dataset(tokenizer=self.tokenizer, data_type='train', prompt_type=self.hparams.prompt_type, compact=self.hparams.compact_dataset)
+        train_dataset = get_dataset(tokenizer=self.tokenizer, data_type='train', prompt_type=self.hparams.prompt_type, compact=self.hparams.compact)
         dataloader = DataLoader(train_dataset, batch_size=self.hparams.train_batch_size, drop_last=True, shuffle=True,
                                 num_workers=nw)
         t_total = (

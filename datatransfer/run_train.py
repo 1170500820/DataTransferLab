@@ -16,17 +16,20 @@ from datatransfer.conditional_generation_model import T5FineTuner, BartFineTuner
 def handle_cli():
     parser = ArgumentParser()
 
-    parser.add_argument('--model', type=str, choices=['bart', 't5'], default='t5')
-    parser.add_argument('--bsz', type=int, default=4)
-    parser.add_argument('--n_gpus', type=int, default=1)
-    parser.add_argument('--epoch', type=int, default=5)
-    parser.add_argument('--name', type=str, default='TaskTransfer_default')
+    parser.add_argument('--model', type=str, choices=['bart', 't5'], default='t5', help='用于训练的模型。BART与T5的结构，tokenizer均不同，需注意。')
+    parser.add_argument('--bsz', type=int, default=4, help='单卡的batch size。实际的batch size为bsz * n_gpus * grad_acc')
+    parser.add_argument('--n_gpus', type=int, default=1, help='用于训练的显卡数量')
+    parser.add_argument('--epoch', type=int, default=5, help='训练的epoch数')
+    parser.add_argument('--name', type=str, default='TaskTransfer_default', help='用于标识该次训练的名字，将用于对checkpoint进行命名。')
     parser.add_argument('--prompt_type', type=str, choices=['find_object', 'find_subject', 'find_relation',
-                                                            'hybrid_find'], default='')
-    parser.add_argument('--grad_acc', type=int, default=4)
+                                                            'hybrid_find'], default='', help='如果使用默认，则采用粗糙处理的数据集')
+    parser.add_argument('--grad_acc', type=int, default=4, help='梯度累积操作，可用于倍增batch size')
+    parser.add_argument('--compact', action='store_true', help='是否使用堆叠的数据集。该选项只能在模型为t5的时候使用！')
 
     args = vars(parser.parse_args())
 
+    if args['model'] != 't5' and args['compact']:
+        raise Exception('compact参数只能在模型为t5的时候设定。')
     if args['model'] == 't5':
         model_name = '/mnt/huggingface_models/mt5-small'
     else:  # args['model'] == 'bart'
@@ -52,6 +55,7 @@ def handle_cli():
 
         # 训练数据
         prompt_type=args['prompt_type'],
+        compact=args['compact'],
 
         # 训练参数
         train_batch_size=args['bsz'],
@@ -107,7 +111,8 @@ def train(config):
             max_epochs=config['max_epochs'],
             precision=32,
             logger=logger,
-            callbacks=callbacks
+            callbacks=callbacks,
+            compact=config['compact']
         )
     else:  # config['n_gpus'] > 1
 
