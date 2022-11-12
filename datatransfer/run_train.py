@@ -3,6 +3,7 @@ sys.path.append('..')
 
 import random
 import numpy as np
+from loguru import logger
 from argparse import ArgumentParser
 
 import torch
@@ -140,20 +141,20 @@ def train(config):
         eval_batch_size=config['eval_batch_size'],
         prompt_type=config['prompt_type']
     )
-    print(f'正在加载模型{config["model_name"]}')
+    logger.info(f'正在加载模型{config["model_name"]}')
     if config['model'] == 't5':
         model = T5FineTuner(model_params)
     else:  # config['model'] == 'bart'
         model = BartFineTuner(model_params)
-    print('模型加载完毕')
-    print('正在加载Trainer')
+    logger.info('模型加载完毕')
+    logger.info('正在加载Trainer')
     trainer = pl.Trainer(**train_params)
-    print('Trainer加载完毕，开始fit！')
+    logger.info('Trainer加载完毕，开始fit！')
     trainer.fit(model)
 
 
 
 if __name__ == '__main__':
     conf = handle_cli()
-    # print(conf)
+    # logger.info(conf)
     train(conf)
