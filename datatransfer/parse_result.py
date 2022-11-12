@@ -39,6 +39,10 @@ def clean_welm_output_by_source(text: str, source_text: str):
     """
 
 
+def get_welm_text(d: dict):
+    return d['choices'][0]['text']
+
+
 def clean_plm_output_sample(text: str, special_tokens: List[str] = None):
     """
     对预训练模型对输出结果进行初步清洗
@@ -52,7 +56,7 @@ def clean_plm_output_sample(text: str, special_tokens: List[str] = None):
     if special_tokens is None:
         special_tokens = []
 
-    special = ['[PAD]', '[CLS]', '[SEP]']
+    special = ['[PAD]', '[CLS]', '[SEP]', '<pad>', '</s>']
     special.extend(special_tokens)
 
     # 删除特殊token
