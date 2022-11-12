@@ -63,7 +63,7 @@ def load_tsv(datapath: str, first_line_tag: bool = True):
         return results
 
 
-def print_dict_as_table(d: dict):
+def print_dict_as_table(d: dict, total: bool = True):
     console = Console()
     table = Table(show_header=True, header_style='bold magenta')
     table.add_column('key', style='dim')
@@ -71,8 +71,9 @@ def print_dict_as_table(d: dict):
     kv = sorted(list(d.items()))
     for (k, v) in kv:
         table.add_row(str(k), str(v))
-    table.add_row(
-        'Total', f'{sum(list(x[1] for x in kv))}'
-    )
+    if total:
+        table.add_row(
+            'Total', f'{sum(list(x[1] for x in kv))}'
+        )
     console.print(table)
 
