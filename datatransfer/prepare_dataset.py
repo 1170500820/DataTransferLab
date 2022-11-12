@@ -115,7 +115,7 @@ class IeDataset(Dataset):
 
 
 class DuIE_Dataset(Dataset):
-    def __init__(self, tokenizer, data_type: str, prompt_type='', max_len=512, lazy_tokenize=True, no_store=True):
+    def __init__(self, tokenizer, data_type: str, prompt_type='', max_len=512, lazy_tokenize=True, no_store=True, add_extra=True):
         if prompt_type == '':  fname = f'../data/prompted/duie_{data_type}.jsonl'
         else:  fname = f'../data/prompted/duie_{prompt_type}_{data_type}.jsonl'
 
@@ -125,6 +125,7 @@ class DuIE_Dataset(Dataset):
         self.max_len = max_len
         self.lazy = lazy_tokenize
         self.no_store = no_store
+        self.add_extra = add_extra
         if self.lazy:  # 若lazy_tokenize，则需要填充list
             self.inputs, self.targets = [None] * len(self.raw_file), [None] * len(self.raw_file)
         else:
@@ -136,6 +137,8 @@ class DuIE_Dataset(Dataset):
         for elem in tqdm(self.raw_file):
             inp = elem['input']
             tgt = elem['target']
+            if self.add_extra:
+                inp += ' <extra_id_1>'
 
             tokenized_inp = self.tokenizer.batch_encode_plus(
                 [inp], max_length=self.max_len, padding='max_length', return_tensors='pt', truncation=True
@@ -155,6 +158,8 @@ class DuIE_Dataset(Dataset):
         if self.lazy and self.inputs[index] is None:
             elem = self.raw_file[index]
             inp, tgt = elem['input'], elem['target']
+            if self.add_extra:
+                inp += ' <extra_id_1>'
             tokenized_inp = self.tokenizer.batch_encode_plus(
                 [inp], max_length=self.max_len, padding='max_length', return_tensors='pt', truncation=True
             )
