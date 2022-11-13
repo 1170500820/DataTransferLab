@@ -65,7 +65,10 @@ def duie_to_instruction_find_object(sample: dict) -> List[dict]:
     for k, v in subject_and_relation.items():
         find_object.append({
             'input': f'{text}|在这句话中，{k[0]}的{k[1]}是：',
-            'target': ','.join(v)
+            'target': ','.join(v),
+            'subject': k[0],
+            'relation': k[1],
+            'objects': v
         })
     return find_object
 
@@ -115,7 +118,8 @@ def duie_to_instruction_find_relation(sample: dict) -> List[dict]:
     for k, v in subject_and_object.items():
         find_relation.append({
             'input': f'{text}|在这句话中，{k[0]}与{k[1]}的关系是：',
-            'target': ','.join(v)
+            'target': ','.join(v),
+
         })
     return find_relation
 
@@ -178,6 +182,6 @@ def duie_to_instruction(option='instruction'):
 
 if __name__ == '__main__':
     # weiboner_to_instruction()
-    duie_to_instruction('find_relation')
-    duie_to_instruction('hybrid_find')
+    duie_to_instruction('find_object')
+    # duie_to_instruction('hybrid_find')
     print('')
