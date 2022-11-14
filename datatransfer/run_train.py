@@ -12,71 +12,92 @@ from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.callbacks import ModelCheckpoint
 
 from datatransfer.conditional_generation_model import T5FineTuner, BartFineTuner
+from datatransfer.information_extraction_model import CAS
+from datatransfer.Models.RE import RE_settings
+from datatransfer.settings import *
 
 
 def handle_cli():
     parser = ArgumentParser()
 
-    parser.add_argument('--model', type=str, choices=['bart', 't5'], default='t5', help='用于训练的模型。BART与T5的结构，tokenizer均不同，需注意。')
+    # 基础参数
+    parser.add_argument('--model', type=str, choices=['bart', 't5', 'casrel'], default='t5', help='用于训练的模型。BART与T5的结构，tokenizer均不同，需注意。')
     parser.add_argument('--bsz', type=int, default=4, help='单卡的batch size。实际的batch size为bsz * n_gpus * grad_acc')
     parser.add_argument('--n_gpus', type=int, default=1, help='用于训练的显卡数量')
     parser.add_argument('--epoch', type=int, default=5, help='训练的epoch数')
     parser.add_argument('--name', type=str, default='TaskTransfer_default', help='用于标识该次训练的名字，将用于对checkpoint进行命名。')
-    parser.add_argument('--prompt_type', type=str, choices=['find_object', 'find_subject', 'find_relation',
-                                                            'hybrid_find'], default='', help='如果使用默认，则采用粗糙处理的数据集')
     parser.add_argument('--grad_acc', type=int, default=4, help='梯度累积操作，可用于倍增batch size')
-    parser.add_argument('--compact', action='store_true', help='是否使用堆叠的数据集。该选项只能在模型为t5的时候使用！')
+    parser.add_argument('--lr', type=float, default=3e-4, help='模型使用的学习率')
+    # logger
+    parser.add_argument('--logger_dir', type=str, default=logger_conf['logger_dir'])
+    parser.add_argument('--every_n_epochs', type=int, default=logger_conf['every_n_epochs'])
+    # checkpoint
+    parser.add_argument('--ckp_dir', type=str, default=logger_conf['dirpath'])
+    parser.add_argument('--save_top_k', type=int, default=ckp_conf['save_top_k'])
+
+    args_1 = vars(parser.parse_known_args()[0])
+
+    # 模型参数
+    if args_1['model'] in ['t5', 'bart', 'casrel']:
+        if args_1['model'] == 't5':
+            plm_model_conf['model_name'] = '/mnt/huggingface_models/mt5-small'
+        elif args_1['model'] == 'bart':
+            plm_model_conf['model_name'] = '/mnt/huggingface_models/bart-base-chinese'
+        parser.add_argument('--model_name', type=str, default=plm_model_conf['model_name'])
+        parser.add_argument('--max_length', type=int, default=plm_model_conf['max_seq_length'])
+        if args_1['model'] in ['t5', 'bart']:
+            parser.add_argument('--prompt_type', type=str,
+                                choices=['find_object', 'find_subject', 'find_relation', 'hybrid_find'],
+                                default=prompt_model_conf['prompt_type'])
+            if args_1['model'] == 't5':
+                parser.add_argument('--compact', action='store_true', help='是否使用堆叠的数据集。该选项只在模型为t5时才能使用！')
+        if args_1['model'] in ['casrel']:
+            parser.add_argument('--class_cnt', type=int, default=extract_model_conf['class_cnt'])
 
     args = vars(parser.parse_args())
 
-    if args['model'] != 't5' and args['compact']:
-        raise Exception('compact参数只能在模型为t5的时候设定。')
-    if args['model'] == 't5':
-        model_name = '/mnt/huggingface_models/mt5-small'
-    else:  # args['model'] == 'bart'
-        model_name = '/mnt/huggingface_models/bart-base-chinese'
-
-    # 一些重要参数需要单独列出
-
-    conf = dict(
-        # 随机种子
-        seed=42,
-
-        # 本次训练的任务名字（也就是模型名字））
-        name=args['name'],
-
-        # 模型参数
-        model=args['model'],
-        model_name=model_name,
-        max_seq_length=512,
-        learning_rate=3e-4,
-        weight_decay=0.1,
-        adam_epsilon=1e-3,
-        warmup_steps=0,
-
-        # 训练数据
-        prompt_type=args['prompt_type'],
-        compact=args['compact'],
-
-        # 训练参数
-        train_batch_size=args['bsz'],
-        eval_batch_size=args['bsz'],
-        max_epochs=args['epoch'],
-        n_gpus=args['n_gpus'],
-        accumulate_grad_batches=args['grad_acc'],
-        strategy='ddp',
-        accelerator='gpu',
-
-        # 日志控制
-        logger_dir='tb_log/',
-        dirpath='t5-checkpoints/',
-        every_n_epochs=1,
-
-        # checkpoint
-        save_top_k=-1,
-        monitor='val_loss',
-    )
-    return conf
+    # conf = dict(
+    #     # 随机种子
+    #     seed=42,
+    #
+    #     # 本次训练的任务名字（也就是模型名字））
+    #     name=args['name'],
+    #
+    #     # 模型参数
+    #     model=args['model'],
+    #     model_name=args['model_name'],
+    #     max_seq_length=args['max_seq'],
+    #     learning_rate=3e-4,
+    #     weight_decay=0.1,
+    #     adam_epsilon=1e-3,
+    #     warmup_steps=0,
+    #
+    #     # CASREL模型参数
+    #     relation_cnt=len(RE_settings.duie_relations),
+    #
+    #     # 训练数据
+    #     prompt_type=args['prompt_type'],
+    #     compact=args['compact'],
+    #
+    #     # 训练参数
+    #     train_batch_size=args['bsz'],
+    #     eval_batch_size=args['bsz'],
+    #     max_epochs=args['epoch'],
+    #     n_gpus=args['n_gpus'],
+    #     accumulate_grad_batches=args['grad_acc'],
+    #     strategy='ddp',
+    #     accelerator='gpu',
+    #
+    #     # 日志控制
+    #     logger_dir='tb_log/',
+    #     dirpath='t5-checkpoints/',
+    #     every_n_epochs=1,
+    #
+    #     # checkpoint
+    #     save_top_k=-1,
+    #     monitor='val_loss',
+    # )
+    return args
 
 def set_seed(seed):
     random.seed(seed)
