@@ -2,7 +2,7 @@
 与tokenize相关的一些转换函数
 *该文件中的所有函数，如没有提及或提供设置项，tokenized中均包含首尾的CLS与SEP。*
 """
-from type_def import *
+from datatransfer.type_def import *
 
 from transformers import BertTokenizerFast, AutoTokenizer
 

@@ -2,7 +2,7 @@
 import inspect
 import typing
 
-from type_def import *
+from datatransfer.type_def import *
 import typing_utils
 
 import json

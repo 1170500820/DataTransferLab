@@ -1,7 +1,7 @@
 """
 专注于将某种存储文件的格式转化为易用的python容器
 """
-from type_def import *
+from datatransfer.type_def import *
 
 
 """
