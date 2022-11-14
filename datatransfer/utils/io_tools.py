@@ -1,4 +1,4 @@
-from type_def import *
+from datatransfer.type_def import *
 import json
 
 """

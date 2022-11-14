@@ -182,6 +182,25 @@ class DuIE_Dataset(Dataset):
         return {"source_ids": source_ids, "source_mask": src_mask, "target_ids": target_ids, "target_mask": target_mask}
 
 
+class DuIE_RE_Direct_Dataset(Dataset):
+    """
+    Direct，直接加载预先处理好的数据结果
+    """
+    def __init__(self, data_type: str, fname: str):
+        self.raw_file = pickle.load(open(fname, 'rb'))
+        self.data_type = data_type
+
+    def __len__(self):
+        return len(self.raw_file)
+
+    def __getitem__(self, index):
+        return self.raw_file[index]
+
+class DuIE_RE_Dataset(Dataset):
+    def __init__(self):
+        pass
+
+
 class DatasetCompactor:
     def __init__(self, lengths: List[int], max_length: int = 512, seed: int = 42):
         random.seed(seed)
@@ -276,15 +295,31 @@ class DuIECompactDataset(Dataset):
 
 
 
-def get_dataset(tokenizer, data_type='train', prompt_type='', compact=False):
+def get_dataset(tokenizer = None, model_type: str = 't5', data_type='train', prompt_type='', compact=False, direct=True):
+    """
+
+    :param tokenizer:
+    :param model_type: 数据所要用于的模型。t5, casrel, bart
+    :param data_type: 数据是训练集还是开发集
+    :param prompt_type: 仅针对t5与bart模型的prompt式数据。prompt的类型
+    :param compact: 仅针对t5的预训练数据。是否使用堆叠的数据集
+    :param direct: 仅针对casrel的数据集。是否直接加载预处理的结果
+    :return:
+    """
     # return IeDataset(tokenizer=tokenizer, data_type=data_type)
-    if compact:
-        return DuIECompactDataset(tokenizer=tokenizer, data_type=data_type, prompt_type=prompt_type)
-    else:
-        return DuIE_Dataset(tokenizer=tokenizer, data_type=data_type, prompt_type=prompt_type)
+    if model_type in ['t5', 'bart']:
+        if compact:
+            return DuIECompactDataset(tokenizer=tokenizer, data_type=data_type, prompt_type=prompt_type)
+        else:
+            return DuIE_Dataset(tokenizer=tokenizer, data_type=data_type, prompt_type=prompt_type)
+    elif model_type == 'casrel':
+        if direct:
+            fname = f'Models/RE/CASREL/temp_data/{data_type}.duie.ro_labeled.pk'
+            return DuIE_RE_Direct_Dataset(data_type=data_type, fname=fname)
+        else:
+            pass
+
 
 
 if __name__ == '__main__':
-    tokenizer = T5Tokenizer.from_pretrained('google/mt5-small')
-    duie = DuIECompactDataset(tokenizer, 'train', 'find_object')
-    d = list(next(iter(duie)) for x in range(30))
+    d = get_dataset(model_type='casrel', data_type='train')

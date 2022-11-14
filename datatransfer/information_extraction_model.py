@@ -10,9 +10,13 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.optim import AdamW
+from torch.utils.data import DataLoader
 import pytorch_lightning as pl
+from transformers import BertModel, BertTokenizerFast, get_linear_schedule_with_warmup
 
-from transformers import BertModel, BertTokenizerFast
+
+from datatransfer.prepare_dataset import get_dataset
+from datatransfer.utils import tools, batch_tool
 
 
 class CASREL(nn.Module):
@@ -337,7 +341,117 @@ class DuIE_FineTuner(pl.LightningModule):
         return tqdm_dict
 
     def train_dataloader(self):
-        pass
+        train_dataset = get_dataset(model_type=self.hparam.model_type, data_type='train')
+
+        def collate_fn(lst):
+            """
+            dict in lst contains:
+            :param lst:
+            :return:
+            """
+            data_dict = tools.transpose_list_of_dict(lst)
+            bsz = len(lst)
+
+            # generate basic input
+            input_ids = torch.tensor(batch_tool.batchify_ndarray1d(data_dict['input_ids']), dtype=torch.long)
+            token_type_ids = torch.tensor(batch_tool.batchify_ndarray1d(data_dict['token_type_ids']), dtype=torch.long)
+            attention_mask = torch.tensor(batch_tool.batchify_ndarray1d(data_dict['attention_mask']), dtype=torch.long)
+            seq_l = input_ids.shape[1]
+            # all (bsz, max_seq_l)
+
+            # generate subject gt for phase 2
+            start_gt_info, end_gt_info = tools.transpose_list_of_dict(
+                data_dict['subject_start_gt']), tools.transpose_list_of_dict(data_dict['subject_end_gt'])
+            start_indexes, end_indexes = start_gt_info['label_index'], end_gt_info['label_index']
+            start_gt = torch.zeros((bsz, seq_l)).scatter(dim=1, index=torch.LongTensor(start_indexes).unsqueeze(-1),
+                                                         src=torch.ones(bsz, 1))
+            end_gt = torch.zeros((bsz, seq_l)).scatter(dim=1, index=torch.LongTensor(end_indexes).unsqueeze(-1),
+                                                       src=torch.ones(bsz, 1))
+            # both (bsz, gt_l)
+
+            # generate subject label
+            start_label_info, end_label_info = tools.transpose_list_of_dict(
+                data_dict['subject_start_label']), tools.transpose_list_of_dict(data_dict['subject_end_label'])
+            start_label_indexes, end_label_indexes = start_label_info['label_indexes'], end_label_info[
+                'label_indexes']  # list of list
+            start_labels, end_labels = [], []
+            for elem_start_indexes, elem_end_indexes in zip(start_label_indexes, end_label_indexes):
+                start_label_cnt, end_label_cnt = len(elem_start_indexes), len(elem_end_indexes)
+                start_labels.append(torch.zeros(seq_l).scatter(dim=0, index=torch.LongTensor(elem_start_indexes),
+                                                               src=torch.ones(start_label_cnt)))
+                end_labels.append(torch.zeros(seq_l).scatter(dim=0, index=torch.LongTensor(elem_end_indexes),
+                                                             src=torch.ones(end_label_cnt)))
+            start_label = torch.stack(start_labels)
+            end_label = torch.stack(end_labels)
+            # both (bsz, seq_l)
+
+            # generate object-relation label
+            ro_start_info, ro_end_info = tools.transpose_list_of_dict(
+                data_dict['relation_to_object_start_label']), tools.transpose_list_of_dict(
+                data_dict['relation_to_object_end_label'])
+            relation_cnt = ro_start_info['relation_cnt'][0]
+            start_label_pre_relation, end_label_per_relation = ro_start_info['label_per_relation'], ro_end_info[
+                'label_per_relation']
+            ro_start_label, ro_end_label = torch.zeros((bsz, seq_l, relation_cnt)), torch.zeros(
+                (bsz, seq_l, relation_cnt))
+            for i_batch in range(bsz):
+                for i_rel in range(relation_cnt):
+                    ro_cur_start_label_indexes = start_label_pre_relation[i_batch][i_rel]
+                    ro_cur_end_label_indexes = end_label_per_relation[i_batch][i_rel]
+                    for elem in ro_cur_start_label_indexes:
+                        ro_start_label[i_batch][elem][i_rel] = 1
+                    for elem in ro_cur_end_label_indexes:
+                        ro_end_label[i_batch][elem][i_rel] = 1
+
+            return {
+                       'input_ids': input_ids,
+                       'token_type_ids': token_type_ids,
+                       'attention_mask': attention_mask,
+                       'subject_gt_start': start_gt,
+                       'subject_gt_end': end_gt
+                   }, {
+                       'subject_start_label': start_label,
+                       'subject_end_label': end_label,
+                       'object_start_label': ro_start_label,
+                       'object_end_label': ro_end_label
+                   }
+
+        dataloader = DataLoader(train_dataset, batch_size=self.hparams.train_batch_size,
+                                drop_last=True, shuffle=True, collate_fn=collate_fn)
+        t_total = (
+                (len(dataloader.dataset) // (self.hparams.train_batch_size * max(1, self.hparams.n_gpus)))
+                // self.hparams.accumulate_grad_batches
+                * float(self.hparams.num_train_epochs)
+        )
+        scheduler = get_linear_schedule_with_warmup(
+            self.opt, num_warmup_steps=self.hparams.warmup_steps, num_training_steps=t_total
+        )
+        self.lr_scheduler = scheduler
+        return dataloader
 
     def val_dataloader(self):
-        pass
+        val_dataset = get_dataset(model_type=self.hparams['model_type'], data_type='dev')
+
+        def collate_fn(lst):
+            data_dict = tools.transpose_list_of_dict(lst)
+
+            # generate basic input
+            input_ids = torch.tensor(data_dict['input_ids'][0], dtype=torch.long).unsqueeze(0)
+            token_type_ids = torch.tensor(data_dict['token_type_ids'][0], dtype=torch.long).unsqueeze(0)
+            attention_mask = torch.tensor(data_dict['attention_mask'][0], dtype=torch.long).unsqueeze(0)
+            # all (1, seq_l)
+
+            gt_triplets = data_dict['eval_triplets'][0]
+            tokens = data_dict['token'][0]
+
+            return {
+                       'input_ids': input_ids,
+                       'token_type_ids': token_type_ids,
+                       'attention_mask': attention_mask
+                   }, {
+                       'gt_triplets': gt_triplets,
+                       'tokens': tokens
+                   }
+
+        dataloader = DataLoader(val_dataset, batch_size=self.hparams.eval_batch_size, collate_fn=collate_fn)
+        return dataloader
