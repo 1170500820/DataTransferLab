@@ -450,27 +450,27 @@ def main():
     logger.info(f'数据集读取路径:{initial_dataset_path}')
     logger.info(f'数据集类型:{dataset_type}')
 
-    logger.info(f'正在生成训练数据')
-    logger.info(f'[Step 1]过滤')
-    data_filter(initial_dataset_path, f'train.{dataset_type}.filterd.jsonl', dataset_type, 'train')
-
-    logger.info(f'[Step 2]tokenize')
-    tokenize_data(f'train.{dataset_type}.filterd.jsonl', f'train.{dataset_type}.tokenized.jsonl', tokenier_plm)
-
-    logger.info(f'[Step 3]获取span')
-    get_span(f'train.{dataset_type}.tokenized.jsonl', f'train.{dataset_type}.span.jsonl')
-
-    logger.info(f'[Step 4]生成label')
-    get_subject_label(f'train.{dataset_type}.span.jsonl', f'train.{dataset_type}.labeled.pk')
-
-    logger.info(f'[Step 5]重组数据')
-    reassemble(f'train.{dataset_type}.labeled.pk', f'train.{dataset_type}.rearranged.pk')
-
-    logger.info(f'[Step 6]为relation+object生成label')
-    get_object_relation_label(f'train.{dataset_type}.rearranged.pk', f'train.{dataset_type}.ro_labeled.pk', dataset_type)
-
-    logger.info(f'[Step 7]生成gt')
-    get_train_gt(f'train.{dataset_type}.ro_labeled.pk', f'train.{dataset_type}.final.pk')
+    # logger.info(f'正在生成训练数据')
+    # logger.info(f'[Step 1]过滤')
+    # data_filter(initial_dataset_path, f'train.{dataset_type}.filterd.jsonl', dataset_type, 'train')
+    #
+    # logger.info(f'[Step 2]tokenize')
+    # tokenize_data(f'train.{dataset_type}.filterd.jsonl', f'train.{dataset_type}.tokenized.jsonl', tokenier_plm)
+    #
+    # logger.info(f'[Step 3]获取span')
+    # get_span(f'train.{dataset_type}.tokenized.jsonl', f'train.{dataset_type}.span.jsonl')
+    #
+    # logger.info(f'[Step 4]生成label')
+    # get_subject_label(f'train.{dataset_type}.span.jsonl', f'train.{dataset_type}.labeled.pk')
+    #
+    # logger.info(f'[Step 5]重组数据')
+    # reassemble(f'train.{dataset_type}.labeled.pk', f'train.{dataset_type}.rearranged.pk')
+    #
+    # logger.info(f'[Step 6]为relation+object生成label')
+    # get_object_relation_label(f'train.{dataset_type}.rearranged.pk', f'train.{dataset_type}.ro_labeled.pk', dataset_type)
+    #
+    # logger.info(f'[Step 7]生成gt')
+    # get_train_gt(f'train.{dataset_type}.ro_labeled.pk', f'train.{dataset_type}.final.pk')
 
     logger.info(f'正在生成评测数据')
     logger.info(f'[Step 1]过滤')
