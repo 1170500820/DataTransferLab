@@ -132,7 +132,7 @@ def train(config):
         train_params = dict(
             accumulate_grad_batches=config['grad_acc'],
             accelerator=env_conf['accelerator'],
-            max_epochs=config['max_epochs'],
+            max_epochs=config['epoch'],
             precision=32,
             logger=logger,
             callbacks=callbacks

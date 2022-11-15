@@ -315,7 +315,7 @@ def get_dataset(tokenizer = None, model_type: str = 't5', data_type='train', pro
     elif model_type == 'casrel':
         if direct:
             if data_type == 'train':
-                fname = f'Models/RE/CASREL/temp_data/{data_type}.duie.ro_labeled.pk'
+                fname = f'Models/RE/CASREL/temp_data/{data_type}.duie.final.pk'
             elif data_type in ['dev', 'valid']:
                 fname = 'Models/RE/CASREL/temp_data/valid.duie.eval_final.pk'
             return DuIE_RE_Direct_Dataset(data_type=data_type, fname=fname)
