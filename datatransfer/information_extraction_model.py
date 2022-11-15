@@ -335,9 +335,9 @@ class DuIE_FineTuner(pl.LightningModule):
         self.log('loss', float(loss))
         return loss
 
-    def validation_step(self, batch, batch_ids):
-        loss = self._step(batch)
-        return {'val_loss': loss}
+    # def validation_step(self, batch, batch_ids):
+    #     loss = self._step(batch)
+    #     return {'val_loss': loss}
 
 
     def configure_optimizers(self):
@@ -447,29 +447,29 @@ class DuIE_FineTuner(pl.LightningModule):
         self.lr_scheduler = scheduler
         return dataloader
 
-    def val_dataloader(self):
-        val_dataset = get_dataset(model_type=self.hparams['model_type'], data_type='dev')
-
-        def collate_fn(lst):
-            data_dict = tools.transpose_list_of_dict(lst)
-
-            # generate basic input
-            input_ids = torch.tensor(data_dict['input_ids'][0], dtype=torch.long).unsqueeze(0)
-            token_type_ids = torch.tensor(data_dict['token_type_ids'][0], dtype=torch.long).unsqueeze(0)
-            attention_mask = torch.tensor(data_dict['attention_mask'][0], dtype=torch.long).unsqueeze(0)
-            # all (1, seq_l)
-
-            gt_triplets = data_dict['eval_triplets'][0]
-            tokens = data_dict['token'][0]
-
-            return {
-                       'input_ids': input_ids,
-                       'token_type_ids': token_type_ids,
-                       'attention_mask': attention_mask
-                   }, {
-                       'gt_triplets': gt_triplets,
-                       'tokens': tokens
-                   }
-
-        dataloader = DataLoader(val_dataset, batch_size=self.hparams.eval_batch_size, collate_fn=collate_fn)
-        return dataloader
+    # def val_dataloader(self):
+    #     val_dataset = get_dataset(model_type=self.hparams['model_type'], data_type='dev')
+    #
+    #     def collate_fn(lst):
+    #         data_dict = tools.transpose_list_of_dict(lst)
+    #
+    #         # generate basic input
+    #         input_ids = torch.tensor(data_dict['input_ids'][0], dtype=torch.long).unsqueeze(0)
+    #         token_type_ids = torch.tensor(data_dict['token_type_ids'][0], dtype=torch.long).unsqueeze(0)
+    #         attention_mask = torch.tensor(data_dict['attention_mask'][0], dtype=torch.long).unsqueeze(0)
+    #         # all (1, seq_l)
+    #
+    #         gt_triplets = data_dict['eval_triplets'][0]
+    #         tokens = data_dict['token'][0]
+    #
+    #         return {
+    #                    'input_ids': input_ids,
+    #                    'token_type_ids': token_type_ids,
+    #                    'attention_mask': attention_mask
+    #                }, {
+    #                    'gt_triplets': gt_triplets,
+    #                    'tokens': tokens
+    #                }
+    #
+    #     dataloader = DataLoader(val_dataset, batch_size=self.hparams.eval_batch_size, collate_fn=collate_fn)
+    #     return dataloader
