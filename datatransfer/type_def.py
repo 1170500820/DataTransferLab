@@ -1,6 +1,6 @@
 import sys
 sys.path.append('.')
-from typing import List, Dict, Union, Any, Set, Iterable, Callable, Tuple
+from typing import List, Dict, Union, Any, Set, Iterable, Callable, Tuple, Sequence, Hashable
 from collections import namedtuple
 
 Args = namedtuple('args', 'name_or_flags dest type help default')
