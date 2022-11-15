@@ -12,7 +12,7 @@ from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.callbacks import ModelCheckpoint
 
 from datatransfer.conditional_generation_model import T5FineTuner, BartFineTuner
-from datatransfer.information_extraction_model import CAS
+from datatransfer.information_extraction_model import DuIE_FineTuner
 from datatransfer.Models.RE import RE_settings
 from datatransfer.settings import *
 
@@ -53,6 +53,7 @@ def handle_cli():
                 parser.add_argument('--compact', action='store_true', help='是否使用堆叠的数据集。该选项只在模型为t5时才能使用！')
         if args_1['model'] in ['casrel']:
             parser.add_argument('--class_cnt', type=int, default=extract_model_conf['class_cnt'])
+            parser.add_argument('--linear_lr', type=float, default=extract_model_conf['linear_lr'])
 
     args = vars(parser.parse_args())
 
@@ -159,14 +160,32 @@ def train(config):
         accumulate_grad_batches=config['accumulate_grad_batches'],
         num_train_epochs=config['max_epochs'],
         eval_batch_size=config['eval_batch_size'],
-        prompt_type=config['prompt_type'],
-        compact=config['compact']
+        # prompt_type=config['prompt_type'],
+        # compact=config['compact'],
+        # linear_lr=config['linear_lr'],
+        # class_cnt=config['class_cnt']
     )
+    if config['model'] in ['t5', 'bart']:
+        model_params.update(dict(
+            prompt_type=config['prompt_type'],
+        ))
+        if config['model'] == 't5':
+            model_params.update(dict(
+                compact=config['compact']
+            ))
+    elif config['model'] in ['casrel']:
+        model_params.update(dict(
+            linear_lr=config['linear_lr'],
+            class_cnt=config['class_cnt']
+        ))
+
     ru_logger.info(f'正在加载模型{config["model_name"]}')
     if config['model'] == 't5':
         model = T5FineTuner(model_params)
-    else:  # config['model'] == 'bart'
+    elif config['model'] == 'bart':  # config['model'] == 'bart'
         model = BartFineTuner(model_params)
+    else:  # config['model'] == 'casrel'
+        model = DuIE_FineTuner(model_params)
     ru_logger.info('模型加载完毕')
     ru_logger.info('正在加载Trainer')
     trainer = pl.Trainer(**train_params)
@@ -177,5 +196,6 @@ def train(config):
 
 if __name__ == '__main__':
     conf = handle_cli()
+    set_seed(conf['seed'])
     # logger.info(conf)
     train(conf)

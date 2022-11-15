@@ -10,10 +10,8 @@ Environment -- 训练的基础信息，包括随机数种子、训练的名字�
 env_conf = dict(
     # 随机数种子
     seed=42,
-
     # 本次训练的命名
     name='default_train',
-
     # 其他
     n_gpus=1,
     accelerator='gpu',
@@ -32,7 +30,6 @@ train_conf = dict(
     warmup_steps=0,
     max_epochs=5,
     accumulate_grad_batches=2,
-
     # batch参数
     train_batch_size=4,
     eval_batch_size=16
@@ -42,9 +39,7 @@ train_conf = dict(
 """
 Model -- 模型参数，指定了Model、FineTuner的行为
 """
-model_conf = dict(
-
-)
+model_conf = dict()
 
 plm_model_conf = dict(
     model_name='bert-base-chinese',
@@ -58,7 +53,9 @@ prompt_model_conf = dict(
 )
 
 extract_model_conf = dict(
-    class_cnt=len(duie_relations)
+    class_cnt=len(duie_relations),
+    linear_lr=1e-5,
+
 )
 """
 model

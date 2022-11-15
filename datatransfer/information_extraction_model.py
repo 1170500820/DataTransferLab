@@ -39,7 +39,13 @@ class CASREL(nn.Module):
             weight_decay
         """
         super(CASREL, self).__init__()
-        self.hparams.update(hparams)
+        self.hparams.update({
+            'relation_cnt': hparams['class_cnt'],
+            'plm_path': hparams['model_name'],
+            'plm_lr': hparams['lr'],
+            'others_lr': hparams['linear_lr'],
+            'weight_decay': hparams['weight_decay']
+        })
         self.relation_cnt = self.hparams['relation_cnt']
         self.plm_lr = self.hparams['plm_lr']
         self.others_lr = self.hparams['others_lr']
@@ -272,6 +278,12 @@ class CASREL_Loss(nn.Module):
 
 
 class DuIE_FineTuner(pl.LightningModule):
+    def __init__(self, params=None):
+        super(DuIE_FineTuner, self).__init__()
+        if params is not None:
+            self.hparams.update(params)
+        self.model = CASREL(params)
+        self.loss = CASREL_Loss()
 
     def forward(self,
                 input_ids: torch.Tensor,
