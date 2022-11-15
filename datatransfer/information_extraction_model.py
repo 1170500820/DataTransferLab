@@ -305,12 +305,13 @@ class DuIE_FineTuner(pl.LightningModule):
         return output
 
     def _step(self, batch):
+        inp, tgt = batch
         outputs = self(
-            input_ids=batch['input_ids'],
-            token_type_ids=batch['token_type_ids'],
-            attention_mask=batch['attention_mask'],
-            subject_gt_start=batch['subject_gt_start'],
-            subject_gt_end=batch['subject_gt_end']
+            input_ids=inp['input_ids'],
+            token_type_ids=inp['token_type_ids'],
+            attention_mask=inp['attention_mask'],
+            subject_gt_start=inp['subject_gt_start'],
+            subject_gt_end=inp['subject_gt_end']
         )
         loss = self.Loss(
             # model output
@@ -320,12 +321,12 @@ class DuIE_FineTuner(pl.LightningModule):
             object_end_result=outputs['object_end_result'],
 
             # preprocessed and label
-            subject_mask=batch['subject_mask'],
-            ro_mask=batch['ro_mask'],
-            subject_start_label=batch['subject_start_label'],
-            subject_end_label=batch['subject_end_label'],
-            object_start_label=batch['object_start_label'],
-            object_end_label=batch['object_end_label']
+            subject_mask=outputs['subject_mask'],
+            ro_mask=outputs['ro_mask'],
+            subject_start_label=tgt['subject_start_label'],
+            subject_end_label=tgt['subject_end_label'],
+            object_start_label=tgt['object_start_label'],
+            object_end_label=tgt['object_end_label']
         )
         return loss
 

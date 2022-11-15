@@ -326,3 +326,4 @@ def get_dataset(tokenizer = None, model_type: str = 't5', data_type='train', pro
 
 if __name__ == '__main__':
     d = get_dataset(model_type='casrel', data_type='train')
+    d2 = get_dataset(model_type='casrel', data_type='valid')
