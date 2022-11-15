@@ -28,11 +28,12 @@ def handle_cli():
     parser.add_argument('--name', type=str, default='TaskTransfer_default', help='用于标识该次训练的名字，将用于对checkpoint进行命名。')
     parser.add_argument('--grad_acc', type=int, default=4, help='梯度累积操作，可用于倍增batch size')
     parser.add_argument('--lr', type=float, default=3e-4, help='模型使用的学习率')
+    parser.add_argument('--seed', type=int, default=env_conf['seed'])
     # logger
     parser.add_argument('--logger_dir', type=str, default=logger_conf['logger_dir'])
     parser.add_argument('--every_n_epochs', type=int, default=logger_conf['every_n_epochs'])
     # checkpoint
-    parser.add_argument('--ckp_dir', type=str, default=logger_conf['dirpath'])
+    parser.add_argument('--ckp_dir', type=str, default=ckp_conf['dirpath'])
     parser.add_argument('--save_top_k', type=int, default=ckp_conf['save_top_k'])
 
     args_1 = vars(parser.parse_known_args()[0])
@@ -117,7 +118,7 @@ def get_logger(config):
 
 def get_callbacks(config):
     return [ModelCheckpoint(
-        dirpath=config['dirpath'],
+        dirpath=config['ckp_dir'],
         save_top_k=config['save_top_k'],
         filename=config['name'] + '.' + '{epoch}-{val_loss:.2f}'
     )]
@@ -129,8 +130,8 @@ def train(config):
 
     if config['n_gpus'] == 1:
         train_params = dict(
-            accumulate_grad_batches=config['accumulate_grad_batches'],
-            accelerator=config['accelerator'],
+            accumulate_grad_batches=config['grad_acc'],
+            accelerator=env_conf['accelerator'],
             max_epochs=config['max_epochs'],
             precision=32,
             logger=logger,
@@ -139,27 +140,27 @@ def train(config):
     else:  # config['n_gpus'] > 1
 
         train_params = dict(
-            accumulate_grad_batches=config['accumulate_grad_batches'],
-            accelerator=config['accelerator'],
+            accumulate_grad_batches=config['grad_acc'],
+            accelerator=env_conf['accelerator'],
             devices=config['n_gpus'],
-            max_epochs=config['max_epochs'],
-            strategy=config['strategy'],
+            max_epochs=config['epoch'],
+            strategy=env_conf['strategy'],
             precision=32,
             logger=logger,
             callbacks=callbacks
         )
     model_params = dict(
-        weight_decay=config['weight_decay'],
+        weight_decay=train_conf['weight_decay'],
         model_name=config['model_name'],
-        learning_rate=config['learning_rate'],
-        adam_epsilon=config['adam_epsilon'],
-        max_seq_length=config['max_seq_length'],
-        warmup_steps=config['warmup_steps'],
-        train_batch_size=config['train_batch_size'],
+        learning_rate=config['lr'],
+        adam_epsilon=train_conf['adam_epsilon'],
+        max_seq_length=plm_model_conf['max_seq_length'],
+        warmup_steps=train_conf['warmup_steps'],
+        train_batch_size=config['bsz'],
         n_gpus=config['n_gpus'],
-        accumulate_grad_batches=config['accumulate_grad_batches'],
-        num_train_epochs=config['max_epochs'],
-        eval_batch_size=config['eval_batch_size'],
+        accumulate_grad_batches=config['grad_acc'],
+        num_train_epochs=config['epoch'],
+        eval_batch_size=config['bsz'],
         # prompt_type=config['prompt_type'],
         # compact=config['compact'],
         # linear_lr=config['linear_lr'],

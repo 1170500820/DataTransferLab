@@ -42,9 +42,11 @@ class CASREL(nn.Module):
         self.hparams.update({
             'relation_cnt': hparams['class_cnt'],
             'plm_path': hparams['model_name'],
-            'plm_lr': hparams['lr'],
+            'plm_lr': hparams['learning_rate'],
             'others_lr': hparams['linear_lr'],
-            'weight_decay': hparams['weight_decay']
+            'weight_decay': hparams['weight_decay'],
+            'adam_epsilon': hparams['adam_epsilon'],
+            'model_type': 'casrel'
         })
         self.relation_cnt = self.hparams['relation_cnt']
         self.plm_lr = self.hparams['plm_lr']
@@ -56,7 +58,7 @@ class CASREL(nn.Module):
 
         # 分类器
         self.subject_start_cls = nn.Linear(self.hidden_size, 1)
-        self.subject_end_cls = nn.Linear(self.hidden_siz, 1)
+        self.subject_end_cls = nn.Linear(self.hidden_size, 1)
         self.object_start_cls = nn.Linear(self.hidden_size, self.relation_cnt)
         self.object_end_cls = nn.Linear(self.hidden_size, self.relation_cnt)
 
@@ -282,6 +284,9 @@ class DuIE_FineTuner(pl.LightningModule):
         super(DuIE_FineTuner, self).__init__()
         if params is not None:
             self.hparams.update(params)
+        self.hparams.update({
+            'model_type': 'casrel'
+            })
         self.model = CASREL(params)
         self.loss = CASREL_Loss()
 
