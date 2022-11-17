@@ -7,6 +7,7 @@ import typing_utils
 
 import json
 import numpy as np
+from loguru import logger
 
 from transformers import BertTokenizerFast
 import pandas as pd
@@ -490,6 +491,7 @@ def get_word_occurrences_in_sentence(sentence: str, word: str):
     :return:
     """
     if word == '':
+        logger.error(f'sentence: {sentence}, word: {word}')
         raise Exception(f'[get_word_occurrences_in_sentence]出现了空word！')
     word_len = len(word)
     starts = [i for i in range(len(sentence)) if sentence.startswith(word, i)]

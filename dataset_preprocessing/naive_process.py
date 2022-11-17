@@ -185,7 +185,6 @@ def process_weibo():
     json.dump(test_result, open('../data/processed/weiboner_test.json', 'w', encoding='utf-8'), ensure_ascii=False)
 
 
-
 def load_Duee_ee(file_dir: str):
     if file_dir[-1] != '/':
         file_dir += '/'
