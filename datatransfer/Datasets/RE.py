@@ -9,6 +9,7 @@ from typing import List, Dict, Any
 from loguru import logger
 from tqdm import tqdm
 from bisect import bisect
+from rich.progress import track
 
 import torch
 from torch.utils.data import Dataset, DataLoader
@@ -67,20 +68,23 @@ def rearrange_by_subject(data_dicts: List[Dict[str, Any]]):
 
 
 class DuIE_CASREL_Dataset(Dataset):
-    def __init__(self, data_type: str, tokenizer):
+    def __init__(self, data_type: str, tokenizer, overfit: bool = False):
         if data_type == 'dev':
             data_type = 'valid'
         self.data_type = data_type
         fname = f'../data/processed/duie_indexed_{data_type}.jsonl'
         self.raw_file = io_tools.load_jsonl(fname)
-        logger.info('DuIE_Dataset正在进行tokenize')
-        for e in tqdm(self.raw_file):
+        if overfit:
+            self.raw_file = self.raw_file[:200]
+        logger.info(f'DuIE_Dataset正在为{data_type}数据集进行tokenize')
+        for e in self.raw_file:
             tokenized = tokenizer(e['text'], return_offsets_mapping=True)
             e.update({
                 'input_ids': tokenized['input_ids'],
                 'token_type_ids': tokenized['token_type_ids'],
                 'attention_mask': tokenized['attention_mask'],
-                'tokens': tokenizer.convert_ids_to_tokens(tokenized['input_ids'])
+                'tokens': tokenizer.convert_ids_to_tokens(tokenized['input_ids']),
+                'offset_mapping': tokenized['offset_mapping']
             })
         if self.data_type == 'train':
             self.expanded = rearrange_by_subject(self.raw_file)
@@ -105,9 +109,9 @@ def casrel_collate_fn(lst, padding=256):
     bsz = len(lst)
 
     # basic input
-    input_ids = batch_tool.batchify_with_padding(data_dict['input_ids'], padding=padding)
-    token_type_ids = batch_tool.batchify_with_padding(data_dict['token_type_ids'], padding=padding)
-    attention_mask = batch_tool.batchify_with_padding(data_dict['attention_mask'], padding=padding)
+    input_ids = batch_tool.batchify_with_padding(data_dict['input_ids'], padding=padding).to(torch.long)
+    token_type_ids = batch_tool.batchify_with_padding(data_dict['token_type_ids'], padding=padding).to(torch.long)
+    attention_mask = batch_tool.batchify_with_padding(data_dict['attention_mask'], padding=padding).to(torch.long)
     max_length = input_ids.shape[1]
     # bsz, max_length
 
@@ -129,8 +133,8 @@ def casrel_collate_fn(lst, padding=256):
     for i, e in enumerate(data_dict['subject_token_span']):
         start_indexes.append([i, e[0]])
         end_indexes.append([i, e[1]])
-    subject_label_start = tensor_tool.generate_label([bsz, max_length], start_indexes)
-    subject_label_end = tensor_tool.generate_label([bsz, max_length], end_indexes)
+    subject_label_start = tensor_tool.generate_label([bsz, max_length], start_indexes).to(torch.float)
+    subject_label_end = tensor_tool.generate_label([bsz, max_length], end_indexes).to(torch.float)
 
     # object-relation label based on current subject
     rel_start_indexes, rel_end_indexes = [], []
@@ -139,8 +143,8 @@ def casrel_collate_fn(lst, padding=256):
             rel_idx = duie_relations_idx[e_subrel['relation']]
             rel_start_indexes.append([i, rel_idx, e_subrel['object_token_span'][0]])
             rel_end_indexes.append([i, rel_idx, e_subrel['object_token_span'][1]])
-    relation_label_start = tensor_tool.generate_label([bsz, len(duie_relations_idx), max_length], rel_start_indexes)
-    relation_label_end = tensor_tool.generate_label([bsz, len(duie_relations_idx), max_length], rel_end_indexes)
+    relation_label_start = tensor_tool.generate_label([bsz, len(duie_relations_idx), max_length], rel_start_indexes).to(torch.float)
+    relation_label_end = tensor_tool.generate_label([bsz, len(duie_relations_idx), max_length], rel_end_indexes).to(torch.float)
     return {
         'input_ids': input_ids,
         'token_type_ids': token_type_ids,

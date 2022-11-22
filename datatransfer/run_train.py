@@ -5,6 +5,7 @@ import random
 import numpy as np
 from loguru import logger as ru_logger
 from argparse import ArgumentParser
+import logging
 
 import torch
 import pytorch_lightning as pl
@@ -42,6 +43,8 @@ def handle_cli():
     parser.add_argument('--grad_acc', type=int, default=4, help='梯度累积操作，可用于倍增batch size')
     parser.add_argument('--lr', type=float, default=3e-4, help='模型使用的学习率')
     parser.add_argument('--seed', type=int, default=env_conf['seed'])
+    # validate
+    parser.add_argument('--val_interval', default=0.5, help='validate的间隔')
     # logger
     parser.add_argument('--logger_dir', type=str, default=logger_conf['logger_dir'])
     parser.add_argument('--every_n_epochs', type=int, default=logger_conf['every_n_epochs'])
@@ -170,6 +173,9 @@ def train(config):
         )
     if config['overfit']:
         train_params['overfit_batches'] = 2
+    train_params.update({
+        'val_check_interval': config['val_interval']
+        })
     model_params = dict(
         weight_decay=train_conf['weight_decay'],
         model_name=config['model_name'],
@@ -185,7 +191,8 @@ def train(config):
         # prompt_type=config['prompt_type'],
         # compact=config['compact'],
         # linear_lr=config['linear_lr'],
-        # class_cnt=config['class_cnt']
+        # class_cnt=config['class_cnt'],
+        overfit=config['overfit']
     )
     if config['model'] in ['t5', 'bart']:
         model_params.update(dict(

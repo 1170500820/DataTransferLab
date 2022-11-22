@@ -48,7 +48,8 @@ class CASREL(nn.Module):
             'others_lr': hparams['linear_lr'],
             'weight_decay': hparams['weight_decay'],
             'adam_epsilon': hparams['adam_epsilon'],
-            'model_type': 'casrel'
+            'model_type': 'casrel',
+            'overfit': hparams['overfit']
         })
         self.relation_cnt = self.hparams['relation_cnt']
         self.plm_lr = self.hparams['plm_lr']
@@ -113,7 +114,7 @@ class CASREL(nn.Module):
             # h_N + v^k_{sub}
             embed = bert_embed + subject_repr
             return embed
-
+        
         # 获取BERT embedding
         result = self.bert(input_ids=input_ids, token_type_ids=token_type_ids, attention_mask=attention_mask)
         output, _ = result[0], result[1]  # output: (bsz, seq_l, hidden)
@@ -269,6 +270,8 @@ class CASREL_Loss(nn.Module):
         # 计算loss
         subject_start_loss = F.binary_cross_entropy(subject_start_result, subject_start_label, reduction='none')
         subject_end_loss = F.binary_cross_entropy(subject_end_result, subject_end_label, reduction='none')
+        object_start_label = object_start_label.permute([0, 2, 1])
+        object_end_label = object_end_label.permute([0, 2, 1])
         object_start_loss = F.binary_cross_entropy(object_start_result, object_start_label, reduction='none')
         object_end_loss = F.binary_cross_entropy(object_end_result, object_end_label, reduction='none')
 
@@ -291,7 +294,7 @@ class DuIE_FineTuner(pl.LightningModule):
             })
         self.model = CASREL(params)
         self.tokenizer = BertTokenizerFast.from_pretrained(self.hparams['model_name'])
-        self.loss = CASREL_Loss()
+        self.Loss = CASREL_Loss()
 
     def forward(self,
                 input_ids: torch.Tensor,
@@ -299,7 +302,7 @@ class DuIE_FineTuner(pl.LightningModule):
                 attention_mask: torch.Tensor,
                 subject_gt_start: torch.Tensor = None,
                 subject_gt_end: torch.Tensor = None):
-        output = self(
+        output = self.model(
             input_ids=input_ids,
             token_type_ids=token_type_ids,
             attention_mask=attention_mask,
@@ -365,9 +368,9 @@ class DuIE_FineTuner(pl.LightningModule):
     def validation_epoch_end(self, validation_step_outputs):
         predict, correct, total = 0, 0, 0
         for e in validation_step_outputs:
-            predict += len(e[0])
-            total += len(e[1])
-            correct += len(e[0].intersection(e[1]))
+            predict += len(e['pred'])
+            total += len(e['gt'])
+            correct += len(e['pred'].intersection(e['gt']))
 
         precision = correct / predict if predict != 0 else 0
         recall = correct / total if total != 0 else 0
@@ -397,7 +400,7 @@ class DuIE_FineTuner(pl.LightningModule):
         return tqdm_dict
 
     def train_dataloader(self):
-        train_dataset = DuIE_CASREL_Dataset(data_type='train', tokenizer=self.tokenizer)
+        train_dataset = DuIE_CASREL_Dataset(data_type='train', tokenizer=self.tokenizer, overfit=self.hparams['overfit'])
         dataloader = DataLoader(train_dataset, batch_size=self.hparams.train_batch_size,
                                 drop_last=True, shuffle=True, collate_fn=casrel_collate_fn)
         t_total = (
