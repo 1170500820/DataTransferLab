@@ -49,6 +49,9 @@ def handle_cli():
     parser.add_argument('--ckp_dir', type=str, default=ckp_conf['dirpath'])
     parser.add_argument('--save_top_k', type=int, default=ckp_conf['save_top_k'])
 
+    # 在2个batch上进行过拟合实验
+    parser.add_argument('--overfit', action='store_true', help='在2个batch上进行过拟合实验。验证代码正确性')
+
     args_1 = vars(parser.parse_known_args()[0])
 
     # 模型参数
@@ -165,6 +168,8 @@ def train(config):
             logger=logger,
             callbacks=callbacks
         )
+    if config['overfit']:
+        train_params['overfit_batches'] = 2
     model_params = dict(
         weight_decay=train_conf['weight_decay'],
         model_name=config['model_name'],
