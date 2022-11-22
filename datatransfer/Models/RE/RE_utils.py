@@ -49,11 +49,24 @@ def convert_lists_to_words_casrel(sentence: str, offset_mapping: OffsetMapping, 
     triplets = convert_lists_to_triplet_casrel(subjects, objects_with_relation)
     words = []
     for elem_triplet in triplets:
-        rel = relations[elem_triplet[0]]
-        subject_span = tokenize_tools.tokenSpan_to_charSpan(elem_triplet[1: 3], offset_mapping)
-        object_span = tokenize_tools.tokenSpan_to_charSpan(elem_triplet[3: 5], offset_mapping)
+        char_triplet = convert_token_triplet_to_char_triplet(elem_triplet, offset_mapping)
+        rel = relations[char_triplet[0]]
+        subject_span = char_triplet[1:3]
+        object_span = char_triplet[3:5]
         words.append((rel, subject_span, object_span))
     return words
+
+
+def convert_token_triplet_to_char_triplet(token_triplet: Triplet, offset_mapping: OffsetMapping) -> Triplet:
+    """
+    将token级别的triplet转换为char级别
+    :param token_triplet:
+    :param offset_mapping:
+    :return:
+    """
+    subject_span = tokenize_tools.tokenSpan_to_charSpan(token_triplet[1:3], offset_mapping)
+    object_span = tokenize_tools.tokenSpan_to_charSpan(token_triplet[3:5], offset_mapping)
+    return token_triplet[0], subject_span[0], subject_span[1], object_span[0], object_span[1]
 
 
 # 专用加载数据集的三个函数，分别加载NYT，WebNLG，duie

@@ -3,9 +3,11 @@ utils.py 编写了一些方便数据处理的函数。
 使用paddlepaddle
 """
 import numpy as np
-from type_def import *
+from datatransfer.type_def import *
 import random
+from loguru import logger
 import torch
+from torch.nn.utils.rnn import pad_sequence
 
 
 """数据的划分相关
@@ -168,6 +170,35 @@ def batchify(*lsts, bsz=None, lst_types=None):
     }
     results = list(map(lambda x: function_map[x[1]](lsts[x[0]], bsz=bsz), enumerate(lst_types)))
     return results
+
+
+def batchify_with_padding(lst: list, padding: Union[str, int]):
+    """
+
+    :param lst:
+    :param padding:
+        - int pad的最大长度
+        - 'max' 以lst中最长的序列长度的作为最大长度
+    :return:
+    """
+    if padding == 'max':
+        pad_length = max(list(len(x) for x in lst))
+    elif type(padding) == int:
+        pad_length = max(padding, max(list(len(x) for x in lst)))
+    else:
+        raise Exception(f'[batchify_with_padding]padding={padding}为非法值！')
+
+    bsz = len(lst)
+    tensor_lst = list(torch.tensor(x, dtype=torch.long) for x in lst)
+    batched = pad_sequence(tensor_lst, batch_first=True)  # bsz, max
+
+    if batched.shape[1] != pad_length:
+        padded = torch.concat([batched, torch.zeros(bsz, pad_length - batched.shape[1])], dim=1)
+        return padded
+    else:
+        return batched
+
+
 
 
 def find_matches(content: str, tokenized_seq: [str, ]) -> {}:

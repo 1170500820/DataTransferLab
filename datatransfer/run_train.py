@@ -10,12 +10,25 @@ import torch
 import pytorch_lightning as pl
 from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.callbacks import ModelCheckpoint
+from pytorch_lightning.callbacks import TQDMProgressBar, RichProgressBar
+from pytorch_lightning.callbacks.progress.rich_progress import RichProgressBarTheme
 
 from datatransfer.conditional_generation_model import T5FineTuner, BartFineTuner
 from datatransfer.information_extraction_model import DuIE_FineTuner
 from datatransfer.Models.RE import RE_settings
 from datatransfer.settings import *
 
+
+my_theme = RichProgressBarTheme(
+    description="dark",
+    progress_bar="green1",
+    progress_bar_finished="green1",
+    progress_bar_pulse="#6206E0",
+    batch_progress="#ff1b66",
+    time="cyan",
+    processing_speed="cyan",
+    metrics="black",
+)
 
 def handle_cli():
     parser = ArgumentParser()
@@ -117,11 +130,14 @@ def get_logger(config):
 
 
 def get_callbacks(config):
-    return [ModelCheckpoint(
-        dirpath=config['ckp_dir'],
-        save_top_k=config['save_top_k'],
-        filename=config['name'] + '.' + '{epoch}-{val_loss:.2f}'
-    )]
+    return [
+        ModelCheckpoint(
+            dirpath=config['ckp_dir'],
+            save_top_k=config['save_top_k'],
+            filename=config['name'] + '.' + '{epoch}-{val_loss:.2f}'),
+        RichProgressBar(
+            theme=my_theme)
+    ]
 
 
 def train(config):

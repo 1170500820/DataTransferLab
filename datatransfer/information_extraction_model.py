@@ -17,7 +17,9 @@ from transformers import BertModel, BertTokenizerFast, get_linear_schedule_with_
 
 from datatransfer.prepare_dataset import get_dataset
 from datatransfer.utils import tools, batch_tool
-
+from datatransfer.Datasets.RE import DuIE_CASREL_Dataset, casrel_collate_fn, casrel_dev_collate_fn
+from datatransfer.Models.RE.RE_utils import convert_lists_to_triplet_casrel, Triplet, convert_token_triplet_to_char_triplet
+from datatransfer.Models.RE.RE_settings import duie_relations_idx
 
 class CASREL(nn.Module):
     hparams = {
@@ -288,6 +290,7 @@ class DuIE_FineTuner(pl.LightningModule):
             'model_type': 'casrel'
             })
         self.model = CASREL(params)
+        self.tokenizer = BertTokenizerFast.from_pretrained(self.hparams['model_name'])
         self.loss = CASREL_Loss()
 
     def forward(self,
@@ -338,7 +341,42 @@ class DuIE_FineTuner(pl.LightningModule):
     # def validation_step(self, batch, batch_ids):
     #     loss = self._step(batch)
     #     return {'val_loss': loss}
+    def validation_step(self, batch, batch_ids):
+        inp, tgt = batch
+        output = self.model(
+            input_ids=inp['input_ids'],
+            token_type_ids=inp['token_type_ids'],
+            attention_mask=inp['attention_mask']
+        )
+        pred_subjects, pred_objects = output['pred_subjects'], output['pred_objects']
+        pred_subjects = list(tuple(x) for x in pred_subjects)
+        pred_triplets = convert_lists_to_triplet_casrel(pred_subjects, pred_objects)  # List[Triplets]
+        gt_triplets = []
+        for e in tgt['gt_triplets']:
+            rel = e['relation']
+            sub = e['subject_token_span']
+            obj = e['object_token_span']
+            gt_triplets.append((duie_relations_idx[rel], sub[0], sub[1], obj[0], obj[1]))
+        return {
+            'pred': set(pred_triplets),
+            'gt': set(gt_triplets)
+        }
 
+    def validation_epoch_end(self, validation_step_outputs):
+        predict, correct, total = 0, 0, 0
+        for e in validation_step_outputs:
+            predict += len(e[0])
+            total += len(e[1])
+            correct += len(e[0].intersection(e[1]))
+
+        precision = correct / predict if predict != 0 else 0
+        recall = correct / total if total != 0 else 0
+        f1_score = (2 * precision * recall) / (precision + recall) if precision + recall != 0 else 0
+        self.log_dict({
+            'precision': precision,
+            'recall': recall,
+            'f1_score': f1_score
+        }, prog_bar=True)
 
     def configure_optimizers(self):
         optimizer = self.model.get_optimizers()
@@ -359,83 +397,9 @@ class DuIE_FineTuner(pl.LightningModule):
         return tqdm_dict
 
     def train_dataloader(self):
-        train_dataset = get_dataset(model_type=self.hparam.model_type, data_type='train')
-
-        def collate_fn(lst):
-            """
-            dict in lst contains:
-            :param lst:
-            :return:
-            """
-            data_dict = tools.transpose_list_of_dict(lst)
-            bsz = len(lst)
-
-            # generate basic input
-            input_ids = torch.tensor(batch_tool.batchify_ndarray1d(data_dict['input_ids']), dtype=torch.long)
-            token_type_ids = torch.tensor(batch_tool.batchify_ndarray1d(data_dict['token_type_ids']), dtype=torch.long)
-            attention_mask = torch.tensor(batch_tool.batchify_ndarray1d(data_dict['attention_mask']), dtype=torch.long)
-            seq_l = input_ids.shape[1]
-            # all (bsz, max_seq_l)
-
-            # generate subject gt for phase 2
-            start_gt_info, end_gt_info = tools.transpose_list_of_dict(
-                data_dict['subject_start_gt']), tools.transpose_list_of_dict(data_dict['subject_end_gt'])
-            start_indexes, end_indexes = start_gt_info['label_index'], end_gt_info['label_index']
-            start_gt = torch.zeros((bsz, seq_l)).scatter(dim=1, index=torch.LongTensor(start_indexes).unsqueeze(-1),
-                                                         src=torch.ones(bsz, 1))
-            end_gt = torch.zeros((bsz, seq_l)).scatter(dim=1, index=torch.LongTensor(end_indexes).unsqueeze(-1),
-                                                       src=torch.ones(bsz, 1))
-            # both (bsz, gt_l)
-
-            # generate subject label
-            start_label_info, end_label_info = tools.transpose_list_of_dict(
-                data_dict['subject_start_label']), tools.transpose_list_of_dict(data_dict['subject_end_label'])
-            start_label_indexes, end_label_indexes = start_label_info['label_indexes'], end_label_info[
-                'label_indexes']  # list of list
-            start_labels, end_labels = [], []
-            for elem_start_indexes, elem_end_indexes in zip(start_label_indexes, end_label_indexes):
-                start_label_cnt, end_label_cnt = len(elem_start_indexes), len(elem_end_indexes)
-                start_labels.append(torch.zeros(seq_l).scatter(dim=0, index=torch.LongTensor(elem_start_indexes),
-                                                               src=torch.ones(start_label_cnt)))
-                end_labels.append(torch.zeros(seq_l).scatter(dim=0, index=torch.LongTensor(elem_end_indexes),
-                                                             src=torch.ones(end_label_cnt)))
-            start_label = torch.stack(start_labels)
-            end_label = torch.stack(end_labels)
-            # both (bsz, seq_l)
-
-            # generate object-relation label
-            ro_start_info, ro_end_info = tools.transpose_list_of_dict(
-                data_dict['relation_to_object_start_label']), tools.transpose_list_of_dict(
-                data_dict['relation_to_object_end_label'])
-            relation_cnt = ro_start_info['relation_cnt'][0]
-            start_label_pre_relation, end_label_per_relation = ro_start_info['label_per_relation'], ro_end_info[
-                'label_per_relation']
-            ro_start_label, ro_end_label = torch.zeros((bsz, seq_l, relation_cnt)), torch.zeros(
-                (bsz, seq_l, relation_cnt))
-            for i_batch in range(bsz):
-                for i_rel in range(relation_cnt):
-                    ro_cur_start_label_indexes = start_label_pre_relation[i_batch][i_rel]
-                    ro_cur_end_label_indexes = end_label_per_relation[i_batch][i_rel]
-                    for elem in ro_cur_start_label_indexes:
-                        ro_start_label[i_batch][elem][i_rel] = 1
-                    for elem in ro_cur_end_label_indexes:
-                        ro_end_label[i_batch][elem][i_rel] = 1
-
-            return {
-                       'input_ids': input_ids,
-                       'token_type_ids': token_type_ids,
-                       'attention_mask': attention_mask,
-                       'subject_gt_start': start_gt,
-                       'subject_gt_end': end_gt
-                   }, {
-                       'subject_start_label': start_label,
-                       'subject_end_label': end_label,
-                       'object_start_label': ro_start_label,
-                       'object_end_label': ro_end_label
-                   }
-
+        train_dataset = DuIE_CASREL_Dataset(data_type='train', tokenizer=self.tokenizer)
         dataloader = DataLoader(train_dataset, batch_size=self.hparams.train_batch_size,
-                                drop_last=True, shuffle=True, collate_fn=collate_fn)
+                                drop_last=True, shuffle=True, collate_fn=casrel_collate_fn)
         t_total = (
                 (len(dataloader.dataset) // (self.hparams.train_batch_size * max(1, self.hparams.n_gpus)))
                 // self.hparams.accumulate_grad_batches
@@ -473,3 +437,10 @@ class DuIE_FineTuner(pl.LightningModule):
     #
     #     dataloader = DataLoader(val_dataset, batch_size=self.hparams.eval_batch_size, collate_fn=collate_fn)
     #     return dataloader
+    def val_dataloader(self):
+        val_dataset = DuIE_CASREL_Dataset('dev', self.tokenizer)
+        val_dataloader = DataLoader(val_dataset, shuffle=False, batch_size=1, collate_fn=casrel_dev_collate_fn)
+        return val_dataloader
+
+if __name__ == '__main__':
+    model = DuIE_FineTuner()
