@@ -71,7 +71,7 @@ class DuIE_CASREL_Dataset(Dataset):
         if data_type == 'dev':
             data_type = 'valid'
         self.data_type = data_type
-        fname = f'../../data/processed/duie_indexed_{data_type}.jsonl'
+        fname = f'../data/processed/duie_indexed_{data_type}.jsonl'
         self.raw_file = io_tools.load_jsonl(fname)
         logger.info('DuIE_Dataset正在进行tokenize')
         for e in tqdm(self.raw_file):
