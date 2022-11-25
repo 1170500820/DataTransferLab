@@ -500,7 +500,7 @@ class CASREL2(nn.Module):
         subject_start, subject_end = subject_start.squeeze(), subject_end.squeeze()  # both (bsz, seq_l)
 
         # 找出所有的合法span
-        spans = self.find_spans(subject_start, subject_end)  # List[spans in batch]
+        spans = self.find_subject_spans(subject_start, subject_end)  # List[spans in batch]
 
         # both (bsz, seq_l), 只包含0和1，dtype=torch.int32
         object_start, object_end = self.get_object_for_indexes(spans, encoded_text)
