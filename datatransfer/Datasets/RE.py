@@ -104,6 +104,7 @@ class DuIE_CASREL_Dataset(Dataset):
             return self.raw_file[index]
 
 
+
 def casrel_collate_fn(lst, padding=256):
     data_dict = tools.transpose_list_of_dict(lst)
     bsz = len(lst)
@@ -182,11 +183,85 @@ def casrel_dev_collate_fn(lst):
     }
 
 
+def casrel_train_collate_fn_2(lst, padding=256):
+    data_dict = tools.transpose_list_of_dict(lst)
+    bsz = len(lst)
+
+    # basic input
+    input_ids = batch_tool.batchify_with_padding(data_dict['input_ids'], padding=padding).to(torch.long)
+    token_type_ids = batch_tool.batchify_with_padding(data_dict['token_type_ids'], padding=padding).to(torch.long)
+    attention_mask = batch_tool.batchify_with_padding(data_dict['attention_mask'], padding=padding).to(torch.long)
+    max_length = input_ids.shape[1]
+    # bsz, max_length
+
+    # subject gt
+    start_tensors, end_tensors = [], []
+    for e in data_dict['all_subjects']:
+        start_tensor, end_tensor = torch.zeros(max_length), torch.zeros(max_length)  # max_seq_l
+        for e_subject in e:
+            start_tensor[e_subject['subject_span'][0]] = 1
+            end_tensor[e_subject['subject_span'][1]] = 1
+        start_tensors.append(start_tensor)
+        end_tensors.append(end_tensor)
+    subject_gt_start = torch.stack(start_tensors)
+    subject_gt_end = torch.stack(end_tensors)
+    # both (bsz, max_seq_l)
+
+    # subject label
+    subject_indexes = []
+    for i, e in enumerate(data_dict['subject_token_span']):
+        subject_indexes.append(tuple(e))
+    # List[token span]
+
+    # object-relation label based on current subject
+    rel_start_indexes, rel_end_indexes = [], []
+    for i, e in enumerate(data_dict['relation_object']):
+        for e_subrel in e:
+            rel_idx = duie_relations_idx[e_subrel['relation']]
+            rel_start_indexes.append([i, rel_idx, e_subrel['object_token_span'][0]])
+            rel_end_indexes.append([i, rel_idx, e_subrel['object_token_span'][1]])
+    relation_label_start = tensor_tool.generate_label([bsz, len(duie_relations_idx), max_length], rel_start_indexes).to(torch.float)
+    relation_label_end = tensor_tool.generate_label([bsz, len(duie_relations_idx), max_length], rel_end_indexes).to(torch.float)
+
+    return {
+        'input_ids': input_ids,
+        'token_type_ids': token_type_ids,
+        'attention_mask': attention_mask,  # (bsz, seq_l)
+        'subject_indexes': subject_indexes  # List[token span]
+           }, {
+        'subject_start_label': subject_gt_start,
+        'subject_end_label': subject_gt_end,  # both (bsz, seq_l)
+        'object_start_label': relation_label_start,
+        'object_end_label': relation_label_end  # both (bsz, relation_cnt, seq_l)
+    }
+
+
+def casrel_dev_collate_fn_2(lst, padding=256):
+    data_dict = tools.transpose_list_of_dict(lst)
+    bsz = len(lst)
+
+    # basic input
+    input_ids = batch_tool.batchify_with_padding(data_dict['input_ids'], padding=padding).to(torch.long)
+    token_type_ids = batch_tool.batchify_with_padding(data_dict['token_type_ids'], padding=padding).to(torch.long)
+    attention_mask = batch_tool.batchify_with_padding(data_dict['attention_mask'], padding=padding).to(torch.long)
+    max_length = input_ids.shape[1]
+    # bsz, max_length
+
+    return {
+        'input_ids': input_ids,
+        'token_type_ids': token_type_ids,
+        'attention_mask': attention_mask
+           }, {
+        'gt_triplets': data_dict['triplets'],
+        'tokens': data_dict['tokens'],
+        'offset_mapping': data_dict['offset_mapping']
+    }
 
 if __name__ == '__main__':
     logger.info('正在加载tokenizer')
-    tokenizer = BertTokenizer.from_pretrained('bert-base-chinese')
+    tokenizer = BertTokenizerFast.from_pretrained('bert-base-chinese')
     logger.info('正在加载数据集')
-    d = DuIE_CASREL_Dataset('dev', tokenizer)
-    # dataloader = DataLoader(d, batch_size=4, shuffle=False, collate_fn=casrel_collate_fn)
-    logger.info(f'数据集的大小:{str(len(d))}, 扩展前大小:{str(len(d.raw_file))}')
+    d = DuIE_CASREL_Dataset('train', tokenizer)
+    dataloader = DataLoader(d, batch_size=4, shuffle=False, collate_fn=casrel_collate_fn)
+    t = next(iter(dataloader))
+    # logger.info(f'数据集的大小:{str(len(d))}, 扩展前大小:{str(len(d.raw_file))}')
