@@ -18,7 +18,7 @@ from transformers import BertModel, BertTokenizerFast, get_linear_schedule_with_
 
 from datatransfer.prepare_dataset import get_dataset
 from datatransfer.utils import tools, batch_tool
-from datatransfer.Datasets.RE import DuIE_CASREL_Dataset, casrel_collate_fn, casrel_dev_collate_fn
+from datatransfer.Datasets.RE import DuIE_CASREL_Dataset, casrel_dev_collate_fn_2, casrel_train_collate_fn_2
 from datatransfer.Models.RE.RE_utils import convert_lists_to_triplet_casrel, Triplet, convert_token_triplet_to_char_triplet
 from datatransfer.Models.RE.RE_settings import duie_relations_idx
 
@@ -827,7 +827,7 @@ class DuIE_FineTuner(pl.LightningModule):
     def train_dataloader(self):
         train_dataset = DuIE_CASREL_Dataset(data_type='train', tokenizer=self.tokenizer, overfit=self.hparams['overfit'])
         dataloader = DataLoader(train_dataset, batch_size=self.hparams.train_batch_size,
-                                drop_last=True, shuffle=True, collate_fn=casrel_train_collate_fn2)
+                                drop_last=True, shuffle=True, collate_fn=casrel_train_collate_fn_2)
         t_total = (
                 (len(dataloader.dataset) // (self.hparams.train_batch_size * max(1, self.hparams.n_gpus)))
                 // self.hparams.accumulate_grad_batches
@@ -839,35 +839,9 @@ class DuIE_FineTuner(pl.LightningModule):
         self.lr_scheduler = scheduler
         return dataloader
 
-    # def val_dataloader(self):
-    #     val_dataset = get_dataset(model_type=self.hparams['model_type'], data_type='dev')
-    #
-    #     def collate_fn(lst):
-    #         data_dict = tools.transpose_list_of_dict(lst)
-    #
-    #         # generate basic input
-    #         input_ids = torch.tensor(data_dict['input_ids'][0], dtype=torch.long).unsqueeze(0)
-    #         token_type_ids = torch.tensor(data_dict['token_type_ids'][0], dtype=torch.long).unsqueeze(0)
-    #         attention_mask = torch.tensor(data_dict['attention_mask'][0], dtype=torch.long).unsqueeze(0)
-    #         # all (1, seq_l)
-    #
-    #         gt_triplets = data_dict['eval_triplets'][0]
-    #         tokens = data_dict['token'][0]
-    #
-    #         return {
-    #                    'input_ids': input_ids,
-    #                    'token_type_ids': token_type_ids,
-    #                    'attention_mask': attention_mask
-    #                }, {
-    #                    'gt_triplets': gt_triplets,
-    #                    'tokens': tokens
-    #                }
-    #
-    #     dataloader = DataLoader(val_dataset, batch_size=self.hparams.eval_batch_size, collate_fn=collate_fn)
-    #     return dataloader
     def val_dataloader(self):
         val_dataset = DuIE_CASREL_Dataset('dev', self.tokenizer)
-        val_dataloader = DataLoader(val_dataset, shuffle=False, batch_size=1, collate_fn=casrel_dev_collate_fn2)
+        val_dataloader = DataLoader(val_dataset, shuffle=False, batch_size=1, collate_fn=casrel_dev_collate_fn_2)
         return val_dataloader
 
 
