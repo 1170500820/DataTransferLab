@@ -205,7 +205,8 @@ def train(config):
     elif config['model'] in ['casrel']:
         model_params.update(dict(
             linear_lr=config['linear_lr'],
-            class_cnt=config['class_cnt']
+            class_cnt=config['class_cnt'],
+            subject_only=True
         ))
 
     ru_logger.info(f'正在加载模型{config["model_name"]}')
