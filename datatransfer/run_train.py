@@ -74,8 +74,7 @@ def handle_cli():
                 parser.add_argument('--compact', action='store_true', help='是否使用堆叠的数据集。该选项只在模型为t5时才能使用！')
         if args_1['model'] in ['casrel', 'casrel_subject']:
             parser.add_argument('--linear_lr', type=float, default=extract_model_conf['linear_lr'])
-            if args_1['model'] in ['casrel']:
-                parser.add_argument('--class_cnt', type=int, default=extract_model_conf['class_cnt'])
+            parser.add_argument('--class_cnt', type=int, default=extract_model_conf['class_cnt'])
 
     args = vars(parser.parse_args())
 
@@ -205,8 +204,7 @@ def train(config):
                 compact=config['compact']
             ))
     elif config['model'] in ['casrel', 'casrel_subject']:
-        if config['model'] in ['casrel']:
-            model_params.update(dict(class_cnt=config['class_cnt']))
+        model_params.update(dict(class_cnt=config['class_cnt']))
         model_params.update(dict(linear_lr=config['linear_lr'],))
 
     ru_logger.info(f'正在加载模型{config["model_name"]}')
