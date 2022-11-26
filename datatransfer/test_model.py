@@ -45,7 +45,7 @@ class Test_CASREL(unittest.TestCase):
         self.assertEqual(float(torch.sum(object_end > 1)), 0, '输出值应当为概率值')
 
     def test_get_object_for_indexes(self):
-        indexes = [[(1, 3), (5, 6)], [(2, 3)], [(1, 2), (3, 4), (7, 8)], [(3,5), (9, 10)]]
+        indexes = [[(1, 3), (5, 6)], [(2, 3)], [(1, 2), (3, 4), (7, 8)], []]
         encoded_text = torch.randn(4, 30, 768)
         start, end = self.model.get_object_for_indexes(indexes, encoded_text)
 
@@ -54,12 +54,18 @@ class Test_CASREL(unittest.TestCase):
         self.assertEqual(len(start), 4, msg='输出的list的长度应当和indexes的长度相同')
         self.assertEqual(len(end), 4, msg='输出的list的长度应当和indexes的长度相同')
 
+
         for e in start + end:
-            self.assertEqual(float(torch.sum(e > 1)), 0, '输出的值应当为概率值')
-            self.assertEqual(float(torch.sum(e < 0)), 0, '输出的值应当为概率值')
-        for estart, eend, elength in zip(start, end, [2, 1, 3, 2]):
-            self.assertEqual(estart.shape[0], elength)
-            self.assertEqual(eend.shape[0], elength)
+            if e is not None:
+                self.assertEqual(float(torch.sum(e > 1)), 0, '输出的值应当为概率值')
+                self.assertEqual(float(torch.sum(e < 0)), 0, '输出的值应当为概率值')
+        for estart, eend, elength in zip(start, end, [2, 1, 3, 0]):
+            if elength == 0:
+                self.assertIsNone(estart, msg='当index为0时，对应预测tensor为None')
+                self.assertIsNone(eend, msg='当index为0时，对应预测tensor为None')
+            else:
+                self.assertEqual(estart.shape[0], elength)
+                self.assertEqual(eend.shape[0], elength)
 
 
     def test_find_subject_spans(self):

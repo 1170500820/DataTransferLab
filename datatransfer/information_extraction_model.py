@@ -6,6 +6,7 @@ sys.path.append('..')
 
 from itertools import chain
 from typing import List, Tuple
+from bisect import bisect_left, bisect_right
 
 import torch
 import torch.nn as nn
@@ -391,7 +392,7 @@ class CASREL2(nn.Module):
         seq_l = encoded_text.shape[1]
         # 有没有更好的实现？
         mapping = torch.zeros((cbsz, seq_l))  # (cbsz, seq_l)
-        mapping = mapping.to(model.device)
+        mapping = mapping.to(self.bert.device)
         for i, v in enumerate(indexes):
             mapping[i][v[0]] = 0.5
             mapping[i][v[1]] = 0.5
@@ -424,6 +425,8 @@ class CASREL2(nn.Module):
             cur_batch_idx = list(x[0] for x in cur_indexes)
             cur_indexes = list((x[1], x[2]) for x in cur_indexes)
             cur_embed = torch.stack(list(encoded_text[x] for x in cur_batch_idx))
+            if len(cur_embed.shape) == 1:  # 扩充出一个batch维度
+                cur_embed = cur_embed.unsqueeze(0)
             result_start, result_end = self.get_object_for_specific_index(cur_indexes, cur_embed)
             start_results.append(result_start)
             end_results.append(result_end)
@@ -431,16 +434,13 @@ class CASREL2(nn.Module):
         # decode
         start, end = torch.concat(start_results, dim=0), torch.concat(end_results, dim=0)
         # (bsz * cnt, seq_l, relation_cnt)
-        last = 0
+
         index_list = list(x[0] for x in tagged_indexes)
         start_decoded, end_decoded = [], []
-        for i in range(1, bsz):
-            n = index_list.index(i)
-            start_decoded.append(start[last: n])
-            end_decoded.append(end[last: n])
-            last = n
-        start_decoded.append(start[last:])
-        end_decoded.append(end[last:])
+        for i in range(bsz):
+            r = (bisect_left(index_list, i), bisect_right(index_list, i))
+            start_decoded.append(start[r[0]: r[1]] if r[0] != r[1] else None)
+            end_decoded.append(end[r[0]: r[1]] if r[0] != r[1] else None)
 
         return start_decoded, end_decoded
 
@@ -472,6 +472,8 @@ class CASREL2(nn.Module):
             其中每一个(seq_l, rel_cnt)都是一个subject所对应的object和relation的所有预测
         :return:
         """
+        if object_start is None:
+            return []
         bsz, relation_cnt = object_start.shape[0], object_start.shape[2]
         object_start, object_end = object_start.permute([0, 2, 1]), object_end.permute([0, 2, 1])
         ostart_mapping, oend_mapping = (object_start > self.hparams['threshold']).int().tolist(), \
@@ -487,6 +489,7 @@ class CASREL2(nn.Module):
                         cur_result.append((ir, span))
             relation_n_object_s.append(cur_result)
         return relation_n_object_s  # List[List[(rel_idx, span)]]
+
     def forward(self,
                 input_ids: torch.Tensor,
                 token_type_ids: torch.Tensor,
