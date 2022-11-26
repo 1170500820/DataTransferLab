@@ -607,6 +607,7 @@ class CASREL_Loss2(nn.Module):
         :return:
         """
         relation_cnt = object_start_result.shape[2]
+        seq_l = object_start_result.shape[1]
 
         # 将subject_result的形状与label对齐
         subject_start_result = subject_start_result.squeeze(-1)  # (bsz, seq_l)
@@ -621,8 +622,9 @@ class CASREL_Loss2(nn.Module):
         object_start_label = object_start_label.permute([0, 2, 1])
         object_end_label = object_end_label.permute([0, 2, 1])
         #   object-relation loss
-        object_start_loss = F.binary_cross_entropy(object_start_result, object_start_label, reduction='none')
-        object_end_loss = F.binary_cross_entropy(object_end_result, object_end_label, reduction='none')
+        breakpoint()
+        object_start_loss = F.binary_cross_entropy(object_start_result, object_start_label.repeat(1, seq_l, 1), reduction='none')
+        object_end_loss = F.binary_cross_entropy(object_end_result, object_end_label.repeat(1, seq_l, 1), reduction='none')
         #       both (bsz, seq_l, relation_cnt)
 
         # 用mask来去除无效loss
@@ -684,7 +686,7 @@ class DuIE_FineTuner(pl.LightningModule):
         if self.hparams['subject_only']:
             self.Loss = CASREL_Loss_subject()
         else:
-            self.Loss = CASREL_Loss()
+            self.Loss = CASREL_Loss2()
 
     def forward(self,
                 input_ids: torch.Tensor,
@@ -792,14 +794,16 @@ class DuIE_FineTuner(pl.LightningModule):
         }
 
     def validation_epoch_end(self, validation_step_outputs):
-        total_outputs = []
+        total_preds, total_gts = [], []
         for e in validation_step_outputs:
-            total_outputs.extend(e)
+            total_preds.extend(e['pred'])
+            total_gts.extend(e['gt'])
         predict, correct, total = 0, 0, 0
-        for e in total_outputs:
-            predict += len(e['pred'])
-            total += len(e['gt'])
-            correct += len(e['pred'].intersection(e['gt']))
+        #breakpoint()
+        for e_pred, e_gt in zip(total_preds, total_gts):
+            predict += len(e_pred)
+            total += len(e_gt)
+            correct += len(e_pred.intersection(e_gt))
 
         precision = correct / predict if predict != 0 else 0
         recall = correct / total if total != 0 else 0
