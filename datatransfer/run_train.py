@@ -45,7 +45,7 @@ def handle_cli():
     parser.add_argument('--lr', type=float, default=3e-4, help='模型使用的学习率')
     parser.add_argument('--seed', type=int, default=env_conf['seed'])
     # validate
-    parser.add_argument('--val_interval', default=0.5, help='validate的间隔')
+    parser.add_argument('--val_interval', type=float, default=0.5, help='validate的间隔')
     # logger
     parser.add_argument('--logger_dir', type=str, default=logger_conf['logger_dir'])
     parser.add_argument('--every_n_epochs', type=int, default=logger_conf['every_n_epochs'])

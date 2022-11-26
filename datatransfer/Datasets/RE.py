@@ -309,10 +309,11 @@ def casrel_train_subject_collate_fn(lst, padding=256):
     # subject gt
     start_tensors, end_tensors = [], []
     for e in data_dict['triplets']:
-        subject_token_span = e['subject_token_span']
         start_tensor, end_tensor = torch.zeros(max_length), torch.zeros(max_length)  # max_seq_l
-        start_tensor[subject_token_span[0]] = 1
-        end_tensor[subject_token_span[1]] = 1
+        for e_subject in e:
+            subject_token_span = e_subject['subject_token_span']
+            start_tensor[subject_token_span[0]] = 1
+            end_tensor[subject_token_span[1]] = 1
         start_tensors.append(start_tensor)
         end_tensors.append(end_tensor)
     subject_start_label = torch.stack(start_tensors)

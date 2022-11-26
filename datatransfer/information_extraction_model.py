@@ -619,6 +619,7 @@ class CASREL_Loss2(nn.Module):
         :param mask: 对input_ids的mask,维度为(bsz, seq_l)的布尔向量，其中pad对应位置的值为True，其他为False
         :return:
         """
+        mask = (1 - mask.int())
         relation_cnt = object_start_result.shape[2]
         seq_l = object_start_result.shape[1]
 
@@ -667,6 +668,7 @@ class CASREL_Loss_subject(nn.Module):
         :param mask: (bsz, seq_l)的布尔向量，对input_ids进行mask，pad对应位置为True，其余为False
         :return:
         """
+        mask = (1 - mask.int())
         # 将subject_result的形状与label对齐
         subject_start_result = subject_start_result.squeeze(-1)  # (bsz, seq_l)
         subject_end_result = subject_end_result.squeeze(-1)  # (bsz, seq_l)
