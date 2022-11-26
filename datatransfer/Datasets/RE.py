@@ -104,8 +104,39 @@ class DuIE_CASREL_Dataset(Dataset):
             return self.raw_file[index]
 
 
+class DuIE_CASREL_subject_Dataset(Dataset):
+    def __init__(self, data_type: str, tokenizer, overfit: bool = False):
+        if data_type == 'dev':
+            data_type = 'valid'
+        self.data_type = data_type
+        fname = f'../data/processed/duie_indexed_{data_type}.jsonl'
+        self.raw_file = io_tools.load_jsonl(fname)
+        if overfit:
+            self.raw_file = self.raw_file[:200]
+        for e in track(self.raw_file, description=f'[DuIE]正在为{data_type}数据集进行tokenize'):
+            tokenized = tokenizer(e['text'], return_offsets_mapping=True)
+            e.update({
+                'input_ids': tokenized['input_ids'],
+                'token_type_ids': tokenized['token_type_ids'],
+                'attention_mask': tokenized['attention_mask'],
+                'tokens': tokenizer.convert_ids_to_tokens(tokenized['input_ids']),
+                'offset_mapping': tokenized['offset_mapping']
+            })
+
+    def __len__(self):
+        return len(self.raw_file)
+
+    def __getitem__(self, index):
+        return self.raw_file[index]
+
 
 def casrel_collate_fn(lst, padding=256):
+    """
+    针对旧模型的实现，基本上废弃了，但是里面的有些实现可以参考
+    :param lst:
+    :param padding:
+    :return:
+    """
     data_dict = tools.transpose_list_of_dict(lst)
     bsz = len(lst)
 
@@ -161,6 +192,11 @@ def casrel_collate_fn(lst, padding=256):
 
 
 def casrel_dev_collate_fn(lst):
+    """
+    针对旧模型的实现，基本上废弃了，但是里面有些实现值得参考
+    :param lst:
+    :return:
+    """
     data_dict = tools.transpose_list_of_dict(lst)
 
     # generate basic input
@@ -256,6 +292,50 @@ def casrel_dev_collate_fn_2(lst, padding=256):
         'tokens': data_dict['tokens'],
         'offset_mapping': data_dict['offset_mapping']
     }
+
+
+def casrel_train_subject_collate_fn(lst, padding=256):
+    data_dict = tools.transpose_list_of_dict(lst)
+    bsz = len(lst)
+
+    # basic input
+    input_ids = batch_tool.batchify_with_padding(data_dict['input_ids'], padding=padding).to(torch.long)
+    token_type_ids = batch_tool.batchify_with_padding(data_dict['token_type_ids'], padding=padding).to(torch.long)
+    attention_mask = batch_tool.batchify_with_padding(data_dict['attention_mask'], padding=padding).to(torch.long)
+    max_length = input_ids.shape[1]
+    # bsz, max_length
+
+    # subject gt
+    start_tensors, end_tensors = [], []
+    for e in data_dict['triplets']:
+        subject_token_span = e['subject_token_span']
+        start_tensor, end_tensor = torch.zeros(max_length), torch.zeros(max_length)  # max_seq_l
+        start_tensor[subject_token_span[0]] = 1
+        end_tensor[subject_token_span[1]] = 1
+        start_tensors.append(start_tensor)
+        end_tensors.append(end_tensor)
+    subject_start_label = torch.stack(start_tensors)
+    subject_end_label = torch.stack(end_tensors)
+
+    return {
+       'input_ids': input_ids,
+       'token_type_ids': token_type_ids,
+       'attention_mask': attention_mask,  # (bsz, seq_l)
+           }, {
+        'subject_start_label': subject_start_label,
+        'subject_end_label': subject_end_label  # (bsz, seq_l)
+    }
+
+
+def casrel_dev_subject_collate_fn(lst, padding=256):
+    """
+    直接复用casrel_dev_collate_fn_2即可
+    :param lst:
+    :param padding:
+    :return:
+    """
+    return casrel_dev_collate_fn_2(lst, padding)
+
 
 if __name__ == '__main__':
     logger.info('正在加载tokenizer')
