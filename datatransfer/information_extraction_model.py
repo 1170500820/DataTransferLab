@@ -396,7 +396,7 @@ class CASREL2(nn.Module):
         for i, v in enumerate(indexes):
             mapping[i][v[0]] = 0.5
             mapping[i][v[1]] = 0.5
-        embed = torch.bmm(mapping.unsqueeze(dim=1), encoded_text).squeeze()  # (bsz, hidden)
+        embed = torch.bmm(mapping.unsqueeze(dim=1), encoded_text)  # (bsz, seq_l, hidden)
         object_start, object_end = torch.sigmoid(self.object_start_cls(embed)), torch.sigmoid(self.object_end_cls(embed))
         # both (bsz, seq_l, relation_cnt)
         return object_start, object_end
@@ -431,6 +431,7 @@ class CASREL2(nn.Module):
             start_results.append(result_start)
             end_results.append(result_end)
 
+        #breakpoint()
         # decode
         start, end = torch.concat(start_results, dim=0), torch.concat(end_results, dim=0)
         # (bsz * cnt, seq_l, relation_cnt)
