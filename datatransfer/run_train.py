@@ -15,7 +15,7 @@ from pytorch_lightning.callbacks import TQDMProgressBar, RichProgressBar
 from pytorch_lightning.callbacks.progress.rich_progress import RichProgressBarTheme
 
 from datatransfer.conditional_generation_model import T5FineTuner, BartFineTuner
-from datatransfer.information_extraction_model import DuIE_FineTuner
+from datatransfer.information_extraction_model import DuIE_FineTuner, DuIE_subject_FineTuner
 from datatransfer.Models.RE import RE_settings
 from datatransfer.settings import *
 
@@ -35,7 +35,8 @@ def handle_cli():
     parser = ArgumentParser()
 
     # 基础参数
-    parser.add_argument('--model', type=str, choices=['bart', 't5', 'casrel'], default='t5', help='用于训练的模型。BART与T5的结构，tokenizer均不同，需注意。')
+    parser.add_argument('--model', type=str, choices=['bart', 't5', 'casrel', 'casrel_subject'],
+                        default='t5', help='用于训练的模型。BART与T5的结构，tokenizer均不同，需注意。')
     parser.add_argument('--bsz', type=int, default=4, help='单卡的batch size。实际的batch size为bsz * n_gpus * grad_acc')
     parser.add_argument('--n_gpus', type=int, default=1, help='用于训练的显卡数量')
     parser.add_argument('--epoch', type=int, default=5, help='训练的epoch数')
@@ -58,7 +59,7 @@ def handle_cli():
     args_1 = vars(parser.parse_known_args()[0])
 
     # 模型参数
-    if args_1['model'] in ['t5', 'bart', 'casrel']:
+    if args_1['model'] in ['t5', 'bart', 'casrel', 'casrel_subject']:
         if args_1['model'] == 't5':
             plm_model_conf['model_name'] = '/mnt/huggingface_models/mt5-small'
         elif args_1['model'] == 'bart':
@@ -71,9 +72,10 @@ def handle_cli():
                                 default=prompt_model_conf['prompt_type'])
             if args_1['model'] == 't5':
                 parser.add_argument('--compact', action='store_true', help='是否使用堆叠的数据集。该选项只在模型为t5时才能使用！')
-        if args_1['model'] in ['casrel']:
-            parser.add_argument('--class_cnt', type=int, default=extract_model_conf['class_cnt'])
+        if args_1['model'] in ['casrel', 'casrel_subject']:
             parser.add_argument('--linear_lr', type=float, default=extract_model_conf['linear_lr'])
+            if args_1['model'] in ['casrel']:
+                parser.add_argument('--class_cnt', type=int, default=extract_model_conf['class_cnt'])
 
     args = vars(parser.parse_args())
 
@@ -202,26 +204,25 @@ def train(config):
             model_params.update(dict(
                 compact=config['compact']
             ))
-    elif config['model'] in ['casrel']:
-        model_params.update(dict(
-            linear_lr=config['linear_lr'],
-            class_cnt=config['class_cnt'],
-            subject_only=False
-        ))
+    elif config['model'] in ['casrel', 'casrel_subject']:
+        if config['model'] in ['casrel']:
+            model_params.update(dict(class_cnt=config['class_cnt']))
+        model_params.update(dict(linear_lr=config['linear_lr'],))
 
     ru_logger.info(f'正在加载模型{config["model_name"]}')
     if config['model'] == 't5':
         model = T5FineTuner(model_params)
-    elif config['model'] == 'bart':  # config['model'] == 'bart'
+    elif config['model'] == 'bart':
         model = BartFineTuner(model_params)
-    else:  # config['model'] == 'casrel'
+    elif config['model'] == 'casrel':
         model = DuIE_FineTuner(model_params)
+    else:  # config['model'] == 'casrel_subject'
+        model = DuIE_subject_FineTuner(model_params)
     ru_logger.info('模型加载完毕')
     ru_logger.info('正在加载Trainer')
     trainer = pl.Trainer(**train_params)
     ru_logger.info('Trainer加载完毕，开始fit！')
     trainer.fit(model)
-
 
 
 if __name__ == '__main__':

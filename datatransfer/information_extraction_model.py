@@ -29,6 +29,7 @@ from datatransfer.Datasets.RE import \
 from datatransfer.Models.RE.RE_utils import convert_lists_to_triplet_casrel, Triplet, convert_token_triplet_to_char_triplet
 from datatransfer.Models.RE.RE_settings import duie_relations_idx
 
+
 class CASREL(nn.Module):
     hparams = {
         'relation_cnt': 1,
