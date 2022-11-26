@@ -407,7 +407,6 @@ class CASREL2(nn.Module):
         """
         对batch中不同句子的indexes，分别抽取出object+relation
         对于每句话，可以有多个span
-        todo indexes为空；indexes[0]为空
         :param indexes: len(indexes) != 0, len(indexes[0])可以为空
         :param encoded_text:
         :param mask: 默认为None，如果提供了，则为(bsz, seq_l)的布尔向量，其中对应pad的位置为True，其他为False。
