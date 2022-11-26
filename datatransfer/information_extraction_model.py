@@ -879,7 +879,7 @@ class DuIE_subject_FineTuner(pl.LightningModule):
         )  # (bsz, seq_l, hidden)
         subject_start, subject_end = self.model.get_subjects(encoded_text, mask)
         # both (bsz, seq_l)
-        spans = self.model.find_subject_spans(subject_start, subject_end)
+        spans = self.model.find_subject_spans(subject_start.squeeze(-1), subject_end.squeeze(-1))
         # List[spans of one sentence]
         spans = list(set(x) for x in spans)
 
