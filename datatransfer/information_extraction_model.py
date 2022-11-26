@@ -382,7 +382,7 @@ class CASREL2(nn.Module):
         """
         通过subject的index来从encoded_text中抽取对应的object和relation
         对于每句话，只能有一个span
-        :param indexes: len = current batch size
+        :param indexes: len = current batch size != 0
         :param encoded_text: (cbsz, seq_l, hidden), 其中cbsz是current batch size，该值不一定要与bsz相同
         :param mask: 默认为None，如果提供了，则为(bsz, seq_l)的布尔向量，其中对应pad的位置为True，其他为False。
             如果提供了，就会用于对预测出的start_prob和end_prob进行mask
@@ -407,7 +407,8 @@ class CASREL2(nn.Module):
         """
         对batch中不同句子的indexes，分别抽取出object+relation
         对于每句话，可以有多个span
-        :param indexes:
+        todo indexes为空；indexes[0]为空
+        :param indexes: len(indexes) != 0, len(indexes[0])可以为空
         :param encoded_text:
         :param mask: 默认为None，如果提供了，则为(bsz, seq_l)的布尔向量，其中对应pad的位置为True，其他为False。
             如果提供了，就会用于对预测出的start_prob和end_prob进行mask
@@ -420,6 +421,10 @@ class CASREL2(nn.Module):
         start_results, end_results = [], []
         for i, e in enumerate(indexes):
             tagged_indexes.extend(list((i, x[0], x[1]) for x in e))
+        if len(tagged_indexes) == 0:
+            # 如果所有的spanlist都为空，则直接输出空列表
+            # 否则下面的concat会出错
+            return [None] * bsz, [None] * bsz
         # [[(1,2),(2,3)], [(7,8)]] -> [(0,1,2), (0,2,3), (0,7,8)] 加上index
         new_batch_count = ((len(tagged_indexes) - 1) // bsz) + 1
         for i in range(new_batch_count):
@@ -452,7 +457,7 @@ class CASREL2(nn.Module):
         根据subject的预测结果tensor，抽取出所预测的subject
         :param start: (bsz, seq_l)
         :param end: (bsz, seq_l)
-        :return:
+        :return: List[span list in current sentence]
         """
 
         subject_start_mapping, subject_end_mapping = (start > self.hparams['threshold']).int().tolist(), \
