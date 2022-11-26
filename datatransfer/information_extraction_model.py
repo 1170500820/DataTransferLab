@@ -776,7 +776,7 @@ class DuIE_FineTuner(pl.LightningModule):
                 # ee_ro 与该subject对应的所有object-relation
                 for eee_ro in ee_ro:
                     cur_pred_triplets.append((eee_ro[0], ee_s[0], ee_s[1], eee_ro[1][0], eee_ro[1][1]))
-            pred_triplets.append(cur_pred_triplets)
+            pred_triplets.append(set(cur_pred_triplets))
         gt_triplets = []
         for elem in tgt['gt_triplets']:
             cur_gt_triplets = []
