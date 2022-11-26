@@ -764,9 +764,6 @@ class DuIE_FineTuner(pl.LightningModule):
             cur_ro = self.model.find_object_spans(output['object_start'][i], output['object_end'][i])
             object_relation.append(cur_ro)
 
-        pred_subjects, pred_objects = output['pred_subjects'], output['pred_objects']
-        pred_subjects = list(tuple(x) for x in pred_subjects)
-
         # 都转换为triplet的格式
         # pred_triplets = convert_lists_to_triplet_casrel(pred_subjects, pred_objects)  # List[Triplets]
         pred_triplets = []
