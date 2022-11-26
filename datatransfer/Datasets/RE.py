@@ -113,7 +113,8 @@ class DuIE_CASREL_subject_Dataset(Dataset):
         self.raw_file = io_tools.load_jsonl(fname)
         if overfit:
             self.raw_file = self.raw_file[:200]
-        for e in track(self.raw_file, description=f'[DuIE]正在为{data_type}数据集进行tokenize'):
+        logger.info(f'[DuIE]正在为{data_type}数据集进行tokenize')
+        for e in self.raw_file:
             tokenized = tokenizer(e['text'], return_offsets_mapping=True)
             e.update({
                 'input_ids': tokenized['input_ids'],
