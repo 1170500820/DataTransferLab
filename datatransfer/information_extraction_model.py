@@ -420,14 +420,16 @@ class CASREL2(nn.Module):
         new_batch_count = ((len(tagged_indexes) - 1) // bsz) + 1
         for i in range(new_batch_count):
             cur_indexes = tagged_indexes[i * bsz: i * bsz + bsz]
+            cur_batch_idx = list(x[0] for x in cur_indexes)
             cur_indexes = list((x[1], x[2]) for x in cur_indexes)
-            cur_embed = torch.stack(list(encoded_text[x[0]] for x in cur_indexes))
+            cur_embed = torch.stack(list(encoded_text[x] for x in cur_batch_idx))
             result_start, result_end = self.get_object_for_specific_index(cur_indexes, cur_embed)
             start_results.append(result_start)
             end_results.append(result_end)
 
         # decode
         start, end = torch.concat(start_results, dim=0), torch.concat(end_results, dim=0)
+        # (bsz * cnt, seq_l, relation_cnt)
         last = 0
         index_list = list(x[0] for x in tagged_indexes)
         start_decoded, end_decoded = [], []
@@ -439,7 +441,7 @@ class CASREL2(nn.Module):
         start_decoded.append(start[last:])
         end_decoded.append(end[last:])
 
-        return start, end
+        return start_decoded, end_decoded
 
     def find_subject_spans(self, start: torch.Tensor, end: torch.Tensor):
         """
@@ -452,7 +454,7 @@ class CASREL2(nn.Module):
         subject_start_mapping, subject_end_mapping = (start > self.hparams['threshold']).int().tolist(), \
                                                  (end > self.hparams[
                                                      'threshold']).int().tolist()  # (bsz, seq_l)
-        bsz, seq_l = subject_start_mapping.shape
+        bsz, seq_l = start.shape
         spans = []
         for i in range(bsz):
             cur_spans = tools.argument_span_determination(subject_start_mapping[i], subject_end_mapping[i],
