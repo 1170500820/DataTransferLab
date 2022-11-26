@@ -624,9 +624,9 @@ class CASREL_Loss2(nn.Module):
         object_start_label = object_start_label.permute([0, 2, 1])
         object_end_label = object_end_label.permute([0, 2, 1])
         #   object-relation loss
-        breakpoint()
-        object_start_loss = F.binary_cross_entropy(object_start_result, object_start_label.repeat(1, seq_l, 1), reduction='none')
-        object_end_loss = F.binary_cross_entropy(object_end_result, object_end_label.repeat(1, seq_l, 1), reduction='none')
+        #breakpoint()
+        object_start_loss = F.binary_cross_entropy(object_start_result, object_start_label, reduction='none')
+        object_end_loss = F.binary_cross_entropy(object_end_result, object_end_label, reduction='none')
         #       both (bsz, seq_l, relation_cnt)
 
         # 用mask来去除无效loss
