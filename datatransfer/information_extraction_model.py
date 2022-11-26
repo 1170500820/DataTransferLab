@@ -391,6 +391,7 @@ class CASREL2(nn.Module):
         seq_l = encoded_text.shape[1]
         # 有没有更好的实现？
         mapping = torch.zeros((cbsz, seq_l))  # (cbsz, seq_l)
+        mapping = mapping.to(model.device)
         for i, v in enumerate(indexes):
             mapping[i][v[0]] = 0.5
             mapping[i][v[1]] = 0.5
@@ -843,7 +844,7 @@ class DuIE_FineTuner(pl.LightningModule):
 
     def val_dataloader(self):
         val_dataset = DuIE_CASREL_Dataset('dev', self.tokenizer)
-        val_dataloader = DataLoader(val_dataset, shuffle=False, batch_size=1, collate_fn=casrel_dev_collate_fn_2)
+        val_dataloader = DataLoader(val_dataset, shuffle=False, batch_size=self.hparams['eval_batch_size'], collate_fn=casrel_dev_collate_fn_2)
         return val_dataloader
 
 
