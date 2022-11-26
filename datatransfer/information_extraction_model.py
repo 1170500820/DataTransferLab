@@ -19,7 +19,13 @@ from transformers import BertModel, BertTokenizerFast, get_linear_schedule_with_
 
 from datatransfer.prepare_dataset import get_dataset
 from datatransfer.utils import tools, batch_tool
-from datatransfer.Datasets.RE import DuIE_CASREL_Dataset, casrel_dev_collate_fn_2, casrel_train_collate_fn_2
+from datatransfer.Datasets.RE import \
+    DuIE_CASREL_Dataset, \
+    casrel_dev_collate_fn_2, \
+    casrel_train_collate_fn_2, \
+    DuIE_CASREL_subject_Dataset, \
+    casrel_dev_subject_collate_fn, \
+    casrel_train_subject_collate_fn
 from datatransfer.Models.RE.RE_utils import convert_lists_to_triplet_casrel, Triplet, convert_token_triplet_to_char_triplet
 from datatransfer.Models.RE.RE_settings import duie_relations_idx
 
@@ -688,11 +694,7 @@ class DuIE_FineTuner(pl.LightningModule):
             })
         self.model = CASREL2(params)
         self.tokenizer = BertTokenizerFast.from_pretrained(self.hparams['model_name'])
-
-        if self.hparams['subject_only']:
-            self.Loss = CASREL_Loss_subject()
-        else:
-            self.Loss = CASREL_Loss2()
+        self.Loss = CASREL_Loss2()
 
     def forward(self,
                 input_ids: torch.Tensor,
@@ -704,32 +706,6 @@ class DuIE_FineTuner(pl.LightningModule):
             attention_mask=attention_mask)
         # todo 对模型对输出还需要进行一些处理
         return output
-
-    def _step(self, batch):
-        inp, tgt = batch
-        outputs = self(
-            input_ids=inp['input_ids'],
-            token_type_ids=inp['token_type_ids'],
-            attention_mask=inp['attention_mask'],
-            subject_gt_start=inp['subject_gt_start'],
-            subject_gt_end=inp['subject_gt_end']
-        )
-        loss = self.Loss(
-            # model output
-            subject_start_result=outputs['subject_start_result'],
-            subject_end_result=outputs['subject_end_result'],
-            object_start_result=outputs['object_start_result'],
-            object_end_result=outputs['object_end_result'],
-
-            # preprocessed and label
-            subject_mask=outputs['subject_mask'],
-            ro_mask=outputs['ro_mask'],
-            subject_start_label=tgt['subject_start_label'],
-            subject_end_label=tgt['subject_end_label'],
-            object_start_label=tgt['object_start_label'],
-            object_end_label=tgt['object_end_label']
-        )
-        return loss
 
     def training_step(self, batch, batch_idx):
         inp, tgt = batch
@@ -858,6 +834,126 @@ class DuIE_FineTuner(pl.LightningModule):
         val_dataloader = DataLoader(val_dataset, shuffle=False, batch_size=self.hparams['eval_batch_size'], collate_fn=casrel_dev_collate_fn_2)
         return val_dataloader
 
+
+class DuIE_subject_FineTuner(pl.LightningModule):
+    def __init__(self, params=None):
+        super(DuIE_subject_FineTuner, self).__init__()
+        if params is not None:
+            self.hparams.update(params)
+        self.hparams.update({
+            'model_type': 'casrel'
+            })
+        self.model = CASREL2(params)
+        self.tokenizer = BertTokenizerFast.from_pretrained(self.hparams['model_name'])
+        self.Loss = CASREL_Loss_subject()
+
+    def forward(self):
+        raise NotImplementedError
+
+    def training_step(self, batch, batch_idx):
+        inp, tgt = batch
+        encoded_text, mask = self.model.get_encoded_text(
+            input_ids=inp['input_ids'],
+            token_type_ids=inp['token_type_ids'],
+            attention_mask=inp['attention_mask']
+        )  # (bsz, seq_l, hidden)
+        subject_start, subject_end = self.model.get_subjects(encoded_text, mask)  # both (bsz, seq_l, 1)
+
+        loss = self.Loss(
+            subject_start_result=subject_start, subject_end_result=subject_end,
+            subject_start_label=tgt['subject_start_label'],
+            subject_end_label=tgt['subject_end_label'],
+            mask=mask
+        )
+        self.log('loss', float(loss))
+        return loss
+
+    def validation_step(self, batch, batch_idx):
+        inp, tgt = batch
+
+        encoded_text, mask = self.model.get_encoded_text(
+            input_ids=inp['input_ids'],
+            token_type_ids=inp['token_type_ids'],
+            attention_mask=inp['attention_mask']
+        )  # (bsz, seq_l, hidden)
+        subject_start, subject_end = self.model.get_subjects(encoded_text, mask)
+        # both (bsz, seq_l)
+        spans = self.model.find_subject_spans(subject_start, subject_end)
+        # List[spans of one sentence]
+        spans = list(set(x) for x in spans)
+
+        gt_triplets = tgt['gt_triplets']
+        gt_spans = []
+        for e_sent in gt_triplets:
+            cur_sent_spans = set()
+            for e_sub in e_sent:
+                cur_sent_spans.add(tuple(e_sub['subject_token_span']))
+            gt_spans.append(cur_sent_spans)
+
+        return {
+            'pred': spans,
+            'gt': gt_spans
+        }
+
+    def train_dataloader(self):
+        train_dataset = DuIE_CASREL_subject_Dataset(data_type='train',
+                                                    tokenizer=self.tokenizer, overfit=self.hparams['overfit'])
+        dataloader = DataLoader(train_dataset, batch_size=self.hparams['train_batch_size'], drop_last=True,
+                                shuffle=True, collate_fn=casrel_train_subject_collate_fn)
+        t_total = (
+                (len(dataloader.dataset) // (self.hparams.train_batch_size * max(1, self.hparams.n_gpus)))
+                // self.hparams.accumulate_grad_batches
+                * float(self.hparams.num_train_epochs)
+        )
+        scheduler = get_linear_schedule_with_warmup(
+            self.opt, num_warmup_steps=self.hparams.warmup_steps, num_training_steps=t_total
+        )
+        self.lr_scheduler = scheduler
+        return dataloader
+
+    def val_dataloader(self):
+        val_dataset = DuIE_CASREL_subject_Dataset('dev', self.tokenizer)
+        val_dataloader = DataLoader(val_dataset, shuffle=False, batch_size=self.hparams['eval_batch_size'], collate_fn=casrel_dev_collate_fn_2)
+        return val_dataloader
+
+    def validation_epoch_end(self, step_outputs):
+        total_preds, total_gts = [], []
+        for e in step_outputs:
+            total_preds.extend(e['pred'])
+            total_gts.extend(e['gt'])
+
+        predict, correct, total = 0, 0, 0
+        for e_pred, e_gt in zip(total_preds, total_gts):
+            predict += len(e_pred)
+            total += len(e_gt)
+            correct += len(e_pred.intersection(e_gt))
+
+        precision = correct / predict if predict != 0 else 0
+        recall = correct / total if total != 0 else 0
+        f1_score = (2 * precision * recall) / (precision + recall) if precision + recall != 0 else 0
+        self.log_dict({
+            'precision': precision,
+            'recall': recall,
+            'f1_score': f1_score
+        }, prog_bar=True)
+
+    def get_tqdm_dict(self):
+        tqdm_dict = {"loss": "{:.3f}".format(self.trainer.avg_loss), "lr": self.lr_scheduler.get_last_lr()[-1]}
+
+        return tqdm_dict
+
+    def configure_optimizers(self):
+        optimizer = self.model.get_optimizers()
+        self.opt = optimizer
+        return [optimizer]
+
+    def optimizer_step(self,
+                       epoch=None, batch_idx=None, optimizer=None, optimizer_idx=None,
+                       optimizer_closure=None, on_tpu=None, using_native_amp=None, using_lbfgs=None
+                       ):
+        optimizer.step(closure=optimizer_closure)
+        optimizer.zero_grad()
+        self.lr_scheduler.step()
 
 if __name__ == '__main__':
     model = DuIE_FineTuner()
