@@ -179,6 +179,7 @@ def train(config):
         })
     model_params = dict(
         weight_decay=train_conf['weight_decay'],
+        name=config['name'],
         model_name=config['model_name'],
         learning_rate=config['lr'],
         adam_epsilon=train_conf['adam_epsilon'],

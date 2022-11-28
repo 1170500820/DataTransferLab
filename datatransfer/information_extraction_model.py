@@ -5,7 +5,7 @@ import sys
 sys.path.append('..')
 
 from itertools import chain
-from typing import List, Tuple
+from typing import List, Tuple, Any
 from bisect import bisect_left, bisect_right
 
 import torch
@@ -940,6 +940,40 @@ class DuIE_subject_FineTuner(pl.LightningModule):
             'f1_score': f1_score
         }, prog_bar=True)
 
+    def predict_dataloader(self):
+        val_dataset = DuIE_CASREL_subject_Dataset('dev', self.tokenizer)
+        val_dataloader = DataLoader(val_dataset, shuffle=False, batch_size=self.hparams['eval_batch_size'], collate_fn=casrel_dev_collate_fn_2)
+        return val_dataloader
+
+    def predict_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> Any:
+        inp, tgt = batch
+
+        encoded_text, mask = self.model.get_encoded_text(
+            input_ids=inp['input_ids'],
+            token_type_ids=inp['token_type_ids'],
+            attention_mask=inp['attention_mask']
+        )  # (bsz, seq_l, hidden)
+        subject_start, subject_end = self.model.get_subjects(encoded_text, mask)
+        # both (bsz, seq_l)
+        spans = self.model.find_subject_spans(subject_start.squeeze(-1), subject_end.squeeze(-1))
+        # List[spans of one sentence]
+        spans = list(set(x) for x in spans)
+
+        gt_triplets = tgt['gt_triplets']
+        gt_spans = []
+        for e_sent in gt_triplets:
+            cur_sent_spans = set()
+            for e_sub in e_sent:
+                cur_sent_spans.add(tuple(e_sub['subject_token_span']))
+            gt_spans.append(cur_sent_spans)
+
+        return {
+            'pred': spans,
+            'gt': gt_spans
+        }
+
+
+
     def get_tqdm_dict(self):
         tqdm_dict = {"loss": "{:.3f}".format(self.trainer.avg_loss), "lr": self.lr_scheduler.get_last_lr()[-1]}
 
@@ -957,6 +991,7 @@ class DuIE_subject_FineTuner(pl.LightningModule):
         optimizer.step(closure=optimizer_closure)
         optimizer.zero_grad()
         self.lr_scheduler.step()
+
 
 if __name__ == '__main__':
     model = DuIE_FineTuner()
