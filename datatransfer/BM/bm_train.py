@@ -1,5 +1,5 @@
 import sys
-sys.path.append('..')
+sys.path.append('../..')
 
 import bmtrain as bmt
 bmt.init_distributed(seed=0)
