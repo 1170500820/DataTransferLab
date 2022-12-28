@@ -9,7 +9,7 @@ from model_center.dataset import DistributedDataLoader
 from model_center.tokenizer import BertTokenizer
 
 
-path_to_dataset = '../../data/BoolQ'
+path_to_dataset = '../../data'
 
 def prepare_train_dataloader():
     tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
