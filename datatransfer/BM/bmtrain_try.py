@@ -19,7 +19,9 @@ class BertModel(nn.Module):
         bmt.init_parameters(self.dense)
 
     def forward(self, input_ids: torch.Tensor, attention_mask: torch.Tensor):
-        pooler_output = self.bert(input_ids=input_ids, attention_mask=attention_mask).pooler_output
-        logits = self.dense(pooler_output)
+        output = self.bert(input_ids=input_ids, attention_mask=attention_mask)
+        pooler_output = output.pooler_output
+        last_hidden = output.last_hidden_state
+        logits = self.dense(last_hidden[:,0])
         return logits
 

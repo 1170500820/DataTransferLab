@@ -40,10 +40,13 @@ def do_train(config: dict):
     lr_scheduler = bmt.lr_scheduler.Noam(
         optimizer,
         start_lr = 1e-5,
-        warmip_iter = 100,
+        warmup_iter = 100,
         end_iter = -1
     )
-    loss_func = bmt.loss.FusedCrossEntropy(ignore_index=-100)
+    loss_func = bmt.loss.FusedCrossEntropy()
+
+    optim_manager = bmt.optim.OptimManager(loss_scale=1024)
+    optim_manager.add_optimizer(optimizer, lr_scheduler)
 
     logger.info('开始训练')
     for epoch in range(config['epoch']):
@@ -52,27 +55,35 @@ def do_train(config: dict):
             input_ids, attention_mask = data['input_ids'], data['attention_mask']
             labels = data['labels']
 
-            optimizer.zero_grad()
+            optim_manager.zero_grad()
 
             # model forward
             logits = model(input_ids=input_ids, attention_mask=attention_mask)
+            relogits = logits.view(-1, logits.shape[-1])
+            relabels = labels.view(-1).to(torch.long)
+            # breakpoint()
 
             # calculate loss
-            loss = loss_func(logits.view(-1, logits.shape[-1]), labels.view(-1))
+            loss = loss_func(logits.view(-1, logits.shape[-1]), labels.view(-1).to(torch.long))
+
+            # 聚合所有进程上的loss
+            global_loss = bmt.sum_loss(loss).item()
 
             # scale loss to avoid precision underflow of fp16
-            loss = optimizer.loss_scale(loss)
+            # loss = optimizer.loss_scale(loss)
 
             # model backward
-            loss.backward()
+            # loss.backward()
+            optim_manager.backward(loss)
 
             # clip gradient norm
-            grad_norm = bmt.optim.clip_grad_norm(optimizer.param_groups, max_norm=10.0, scale=optimizer.scale, norm_type=2)
+            # grad_norm = bmt.optim.clip_grad_norm(optimizer.param_groups, max_norm=10.0, scale=optimizer.scale, norm_type=2)
 
-            bmt.optim_step(optimizer, lr_scheduler)
+            # bmt.optim_step(optimizer, lr_scheduler)
+            optim_manager.step()
 
             bmt.print_rank(
-                f'losss: {bmt.sum_loss(loss).item():.4f} | lr: {lr_scheduler.current_lr:.4e}, scale: {int(optimizer.scale):.4f} | grad_norm: {grad_norm:.4f}'
+                f'losss: {bmt.sum_loss(loss).item():.4f} | lr: {lr_scheduler.current_lr:.4e}'
             )
 
         # evaluate model
